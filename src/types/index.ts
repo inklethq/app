@@ -15,4 +15,7 @@ export interface Attachment {
   preview: string;
   url?: string;
   og?: OgData;
+  fileData?: string;
+  contentType?: string;
+  sizeBytes?: number;
 }

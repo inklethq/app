@@ -249,6 +249,10 @@ ipcMain.on("login-success", (_e, data: { username: string }) => {
   if (popup && !popup.isDestroyed()) { popup.close(); popup = null; }
 });
 
+ipcMain.handle("upload-content", async (_e, data: any) => {
+  return uploadContent(data);
+});
+
 ipcMain.on("check-for-updates", () => {
   checkForUpdates();
 });
@@ -323,6 +327,7 @@ ipcMain.handle("fetch-og", async (_e, url: string) => {
 import { loadSources, saveSource, removeSource, updateSourceConfig, syncSource, getSyncFrequency, setSyncFrequency, getHotkey, setHotkey as storeHotkey, getCloseToTray, setCloseToTray as storeCloseToTray, detectObsidianVaults, detectLogseqGraphs } from "./sync.js";
 import { login, register, logout, getMe, tryRestore, startGoogleOAuth, getStoredUser, handleOAuthCallback, registerProtocol } from "./auth.js";
 import { initAutoUpdater, checkForUpdates } from "./updater.js";
+import { uploadContent } from "./upload.js";
 
 let syncTimer: ReturnType<typeof setInterval> | null = null;
 

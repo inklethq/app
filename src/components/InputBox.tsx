@@ -8,6 +8,17 @@ function genId() {
   return Math.random().toString(36).slice(2);
 }
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1]);
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
 const W = 500;
 const H_BASE = 179;
 const H_ATTACHMENTS = 80;
@@ -96,13 +107,41 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
     if (!content.trim() && attachments.length === 0) return;
     setSubmitting(true);
     setSubmitState("loading");
-    await new Promise((r) => setTimeout(r, 800));
-    setContent("");
-    setSuggestion("");
-    setAttachments([]);
-    setSubmitting(false);
-    setSubmitState("success");
-    setTimeout(() => setSubmitState("idle"), 1200);
+    try {
+      const uploadAttachments = attachments.map((a) => {
+        if (a.type === "link") {
+          return { type: "link" as const, url: a.url };
+        }
+        const mime = a.contentType || "application/octet-stream";
+        const isImage = mime.startsWith("image/");
+        return {
+          type: (isImage ? "image" : "doc") as "image" | "doc",
+          filename: a.name,
+          contentType: mime,
+          sizeBytes: a.sizeBytes || 0,
+          fileData: a.fileData,
+        };
+      });
+
+      await (window as any).electronAPI?.uploadContent({
+        mainText: content,
+        attachments: uploadAttachments,
+        mode,
+        deviceId: mode === "manual" ? deviceId : undefined,
+        duration: mode === "manual" ? duration : undefined,
+      });
+
+      setContent("");
+      setSuggestion("");
+      setAttachments([]);
+      setSubmitState("success");
+      setSubmitting(false);
+      setTimeout(() => setSubmitState("idle"), 1200);
+    } catch (e: any) {
+      console.error("Upload failed:", e);
+      setSubmitting(false);
+      setSubmitState("idle");
+    }
   }
 
   async function handleClipboard() {
@@ -112,10 +151,12 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
         const imgType = item.types.find((t) => t.startsWith("image/"));
         if (imgType) {
           const blob = await item.getType(imgType);
+          const fileData = await blobToBase64(blob);
           addAttachment({
             id: genId(), type: "image",
             name: `Clipboard.${imgType.split("/")[1]}`,
             preview: URL.createObjectURL(blob),
+            fileData, contentType: imgType, sizeBytes: blob.size,
           });
           return;
         }
@@ -130,7 +171,7 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
     } catch { /* clipboard denied */ }
   }
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -139,9 +180,11 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
     const isText = textExts.some((ext) => file.name.toLowerCase().endsWith(ext));
 
     if (isImage) {
+      const fileData = await blobToBase64(file);
       addAttachment({
         id: genId(), type: "image", name: file.name,
         preview: URL.createObjectURL(file),
+        fileData, contentType: file.type, sizeBytes: file.size,
       });
     } else if (isText) {
       const reader = new FileReader();
@@ -152,25 +195,29 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
       };
       reader.readAsText(file);
     } else {
+      const fileData = await blobToBase64(file);
       addAttachment({
         id: genId(), type: "clipboard", name: file.name,
         preview: `${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
+        fileData, contentType: file.type || "application/octet-stream", sizeBytes: file.size,
       });
     }
     e.target.value = "";
   }
 
-  function handlePaste(e: React.ClipboardEvent) {
+  async function handlePaste(e: React.ClipboardEvent) {
     for (let i = 0; i < e.clipboardData.items.length; i++) {
       const item = e.clipboardData.items[i];
       if (item.type.startsWith("image/")) {
         e.preventDefault();
         const blob = item.getAsFile();
         if (!blob) continue;
+        const fileData = await blobToBase64(blob);
         addAttachment({
           id: genId(), type: "image",
           name: `Pasted.${item.type.split("/")[1]}`,
           preview: URL.createObjectURL(blob),
+          fileData, contentType: item.type, sizeBytes: blob.size,
         });
         return;
       }

@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.send("set-open-at-login", value);
   },
   getOpenAtLogin: () => ipcRenderer.invoke("get-open-at-login"),
+  uploadContent: (data: any) => ipcRenderer.invoke("upload-content", data),
   updateSkip: (version: string) => ipcRenderer.send("update-skip", version),
   updateLater: () => ipcRenderer.send("update-later"),
   updateInstall: () => ipcRenderer.send("update-install"),
