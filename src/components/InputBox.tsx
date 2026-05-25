@@ -58,7 +58,7 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [duration, setDuration] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [submitState, setSubmitState] = useState<"idle" | "loading" | "success">("idle");
+  const [submitState, setSubmitState] = useState<"idle" | "loading" | "success" | "error">("idle");
 
   useEffect(() => {
     (window as any).electronAPI?.onSystemContext?.((ctx: { selectedText: string; browserUrl: string }) => {
@@ -140,7 +140,8 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
     } catch (e: any) {
       console.error("Upload failed:", e);
       setSubmitting(false);
-      setSubmitState("idle");
+      setSubmitState("error");
+      setTimeout(() => setSubmitState("idle"), 2000);
     }
   }
 
@@ -362,10 +363,10 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
               disabled={!canSubmit || submitState !== "idle"}
               style={{
                 width: 30, height: 30, borderRadius: 8,
-                background: submitState === "success" ? "#34A853" : "var(--accent)",
+                background: submitState === "success" ? "#34A853" : submitState === "error" ? "#D93025" : "var(--accent)",
                 border: "none",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                color: submitState === "success" ? "white" : "var(--bg)",
+                color: submitState === "success" || submitState === "error" ? "white" : "var(--bg)",
                 cursor: canSubmit && submitState === "idle" ? "pointer" : "default",
                 opacity: canSubmit || submitState !== "idle" ? 1 : 0.25,
                 transition: "background 200ms, opacity 150ms",
@@ -381,6 +382,10 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <path d="M3 7.5l3 3 5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
                     strokeDasharray="15" strokeDashoffset="15" style={{ animation: "checkDraw 400ms ease-out forwards" }}/>
+                </svg>
+              ) : submitState === "error" ? (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
                 </svg>
               ) : (
                 <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
