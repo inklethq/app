@@ -1,6 +1,6 @@
 import { getStoredTokens } from "./auth.js";
 
-const API_URL = "https://api.iminklet.com";
+const API_URL = "https://dev.iminklet.com";
 
 interface UploadAttachment {
   type: "image" | "doc" | "link";
