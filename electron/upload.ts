@@ -95,8 +95,9 @@ export async function uploadContent(req: UploadRequest): Promise<{ itemId: strin
   };
 
   const fileAttachments = req.attachments.filter((a) => a.type !== "link" && a.fileData);
+  const presignedList = uploadData.attachments ?? [];
 
-  for (const presigned of uploadData.attachments) {
+  for (const presigned of presignedList) {
     const attachment = fileAttachments[presigned.index] ??
       req.attachments.filter((a) => a.type !== "link")[presigned.index];
 
