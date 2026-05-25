@@ -40,8 +40,6 @@ async function authedFetch(path: string, options?: RequestInit): Promise<Respons
 }
 
 async function uploadToS3(presigned: { url: string; fields: Record<string, string> }, fileData: Buffer) {
-  const { default: FormData } = await import("node-fetch");
-
   const boundary = `----inklet${Date.now()}`;
   const parts: Buffer[] = [];
 
