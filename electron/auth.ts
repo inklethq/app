@@ -2,7 +2,7 @@ import { app, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 
-const AUTH_URL = "https://dev.iminklet.com";
+const AUTH_URL = "https://auth.iminklet.com";
 
 interface AuthUser {
   id: string;
