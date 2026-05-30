@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { Attachment, OgData } from "../types";
+import type { ServiceItem } from "../../electron/service-types";
 import AttachmentList from "./AttachmentList";
 import LinkModal from "./LinkModal";
 import ModeSwitch from "./ModeSwitch";
@@ -75,6 +76,14 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
       setTimeout(() => textareaRef.current?.focus(), 50);
     });
   }, [content]);
+
+  useEffect(() => {
+    (window as any).electronAPI?.onServiceContent?.((items: ServiceItem[]) => {
+      for (const item of items) applyServiceItem(item);
+    });
+    // 沿用现有 on* 监听器风格(无 removeListener)。生产环境 InputBox 只挂载一次。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [attachReady, setAttachReady] = useState(false);
   const prevAttachCount = useRef(0);
@@ -237,6 +246,28 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
     } catch {
       const hostname = new URL(url).hostname;
       addAttachment({ id: genId(), type: "link", name: hostname, preview: url, url });
+    }
+  }
+
+  function applyServiceItem(item: ServiceItem) {
+    if (item.kind === "text") {
+      setContent((c) => c + (c ? "\n\n" : "") + item.text);
+      setSuggestion("");
+      textareaRef.current?.focus();
+    } else if (item.kind === "url") {
+      acceptUrlSuggestion(item.url);
+    } else if (item.kind === "image") {
+      addAttachment({
+        id: genId(), type: "image", name: item.filename,
+        preview: `data:${item.contentType};base64,${item.base64}`,
+        fileData: item.base64, contentType: item.contentType, sizeBytes: item.sizeBytes,
+      });
+    } else {
+      addAttachment({
+        id: genId(), type: "clipboard", name: item.filename,
+        preview: `${item.filename} (${(item.sizeBytes / 1024).toFixed(1)} KB)`,
+        fileData: item.base64, contentType: item.contentType, sizeBytes: item.sizeBytes,
+      });
     }
   }
 
