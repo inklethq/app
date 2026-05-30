@@ -66,6 +66,33 @@ describe("normalizeServicePayload", () => {
       .toEqual([]);
   });
 
+  it("skips only the unreadable file, keeping the others", () => {
+    const read = (p: string) => {
+      if (p === "/missing") throw new Error("ENOENT");
+      if (p.endsWith(".png")) return Buffer.from([9, 9]);
+      return Buffer.from("# md", "utf8");
+    };
+    const items = normalizeServicePayload({ files: ["/good.png", "/missing", "/notes.md"] }, read);
+    expect(items).toEqual([
+      { kind: "image", filename: "good.png", contentType: "image/png", sizeBytes: 2, base64: Buffer.from([9, 9]).toString("base64") },
+      { kind: "text", text: "# md" },
+    ]);
+  });
+
+  it("returns [] for an empty payload", () => {
+    expect(normalizeServicePayload({}, readDummy)).toEqual([]);
+  });
+
+  it("classifies tiff and heic files as image items", () => {
+    const buf = Buffer.from([7]);
+    expect(normalizeServicePayload({ files: ["/a/scan.tiff"] }, () => buf)).toEqual([
+      { kind: "image", filename: "scan.tiff", contentType: "image/tiff", sizeBytes: 1, base64: buf.toString("base64") },
+    ]);
+    expect(normalizeServicePayload({ files: ["/a/photo.HEIC"] }, () => buf)).toEqual([
+      { kind: "image", filename: "photo.HEIC", contentType: "image/heic", sizeBytes: 1, base64: buf.toString("base64") },
+    ]);
+  });
+
   it("combines multiple types in order: text, url, image", () => {
     const items = normalizeServicePayload(
       { text: "t", urls: ["https://a"], images: [{ base64: "QQ==", mime: "image/gif" }] },
