@@ -17,12 +17,12 @@ interface ServicesAddon {
 function loadAddon(): ServicesAddon | null {
   if (process.platform !== "darwin") return null;
   const candidates = [
-    path.join(process.resourcesPath ?? "", "inklet_services.node"),
+    ...(process.resourcesPath ? [path.join(process.resourcesPath, "inklet_services.node")] : []),
     path.join(__dirname, "../native/services/build/Release/inklet_services.node"),
   ];
   for (const p of candidates) {
     try {
-      if (p && fs.existsSync(p)) return require(p) as ServicesAddon;
+      if (fs.existsSync(p)) return require(p) as ServicesAddon;
     } catch (e) {
       console.error("[services] failed to load addon at", p, e);
     }
@@ -43,7 +43,10 @@ export function initServices(getWindow: () => BrowserWindow | null) {
     win.show();
     win.focus();
     const send = () => {
-      if (!win.isDestroyed()) win.webContents.send("service-content", items);
+      if (win.isDestroyed()) return;
+      win.webContents.send("service-content", items);
+      // mirror the hotkey path: focus the input on activation
+      win.webContents.send("window-shown");
     };
     if (win.webContents.isLoading()) {
       win.webContents.once("did-finish-load", send);
