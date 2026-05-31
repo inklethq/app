@@ -39,6 +39,13 @@ describe("InputBox service-content", () => {
   it("image item adds an image attachment card", async () => {
     render(<InputBox />);
     serviceCb!([{ kind: "image", filename: "cat.png", contentType: "image/png", sizeBytes: 3, base64: "AQID" }]);
+    // attachments render after a ~200ms attachReady delay; 1500ms gives headroom
     await waitFor(() => expect(screen.getByText("cat.png")).toBeInTheDocument(), { timeout: 1500 });
+  });
+
+  it("file item adds a generic attachment card", async () => {
+    render(<InputBox />);
+    serviceCb!([{ kind: "file", filename: "doc.pdf", contentType: "application/pdf", sizeBytes: 2048, base64: "AQID" }]);
+    await waitFor(() => expect(screen.getByText("doc.pdf")).toBeInTheDocument(), { timeout: 1500 });
   });
 });

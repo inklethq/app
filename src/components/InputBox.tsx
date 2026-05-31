@@ -262,12 +262,15 @@ export default function InputBox({ disabled, onLoginClick }: { disabled?: boolea
         preview: `data:${item.contentType};base64,${item.base64}`,
         fileData: item.base64, contentType: item.contentType, sizeBytes: item.sizeBytes,
       });
-    } else {
+    } else if (item.kind === "file") {
       addAttachment({
         id: genId(), type: "clipboard", name: item.filename,
         preview: `${item.filename} (${(item.sizeBytes / 1024).toFixed(1)} KB)`,
         fileData: item.base64, contentType: item.contentType, sizeBytes: item.sizeBytes,
       });
+    } else {
+      const _exhaustive: never = item;
+      return _exhaustive;
     }
   }
 
