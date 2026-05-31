@@ -19,6 +19,20 @@ mac:
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
   notarize: true
+  extraResources:
+    - from: native/services/build/Release/inklet_services.node
+      to: inklet_services.node
+  extendInfo:
+    NSServices:
+      - NSMenuItem:
+          default: "Send to Inklet"
+        NSMessage: "sendToInklet"
+        NSPortName: "inklet Portal"
+        NSSendTypes:
+          - "public.utf8-plain-text"
+          - "public.url"
+          - "public.file-url"
+          - "public.image"
   target:
     - target: dmg
       arch:
@@ -28,6 +42,7 @@ mac:
       arch:
         - arm64
         - x64
+beforeBuild: ./scripts/before-build.cjs
 win:
   icon: resources/icon.png
   target:
