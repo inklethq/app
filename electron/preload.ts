@@ -93,4 +93,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onWindowShown: (cb: () => void) => {
     ipcRenderer.on("window-shown", () => cb());
   },
+  onServiceContent: (cb: (items: unknown[]) => void) => {
+    ipcRenderer.on("service-content", (_e, items) => cb(items));
+  },
 });

@@ -126,6 +126,7 @@ function createWindow() {
   currentShortcut = getHotkey();
   closeToTray = getCloseToTray();
   registerHotkey(currentShortcut);
+  initServices(() => win);
 
   initAutoUpdater(win!, path.join(__dirname, "preload.mjs"));
   if (!process.env.VITE_DEV_SERVER_URL) {
@@ -328,6 +329,7 @@ import { loadSources, saveSource, removeSource, updateSourceConfig, syncSource, 
 import { login, register, logout, getMe, tryRestore, startGoogleOAuth, getStoredUser, handleOAuthCallback, registerProtocol } from "./auth.js";
 import { initAutoUpdater, checkForUpdates } from "./updater.js";
 import { uploadContent } from "./upload.js";
+import { initServices } from "./services.js";
 
 let syncTimer: ReturnType<typeof setInterval> | null = null;
 
