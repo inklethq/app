@@ -14,6 +14,14 @@ struct ServiceData {
   std::vector<std::pair<std::string, std::string>> images; // {base64, mime}
 };
 
+// -[NSString UTF8String] returns NULL for strings that can't be UTF-8 encoded;
+// std::string(NULL) is UB. Pasteboard content is attacker-influenced, so guard.
+static std::string toStd(NSString *s) {
+  if (!s) return std::string();
+  const char *c = [s UTF8String];
+  return c ? std::string(c) : std::string();
+}
+
 @interface InkletServiceProvider : NSObject
 - (void)sendToInklet:(NSPasteboard *)pboard userData:(NSString *)userData error:(NSString **)error;
 @end
@@ -22,15 +30,16 @@ struct ServiceData {
 - (void)sendToInklet:(NSPasteboard *)pboard userData:(NSString *)userData error:(NSString **)error {
   ServiceData *data = new ServiceData();
 
-  NSString *str = [pboard stringForType:NSPasteboardTypeString];
-  if (str) data->text = std::string([str UTF8String]);
+  data->text = toStd([pboard stringForType:NSPasteboardTypeString]);
 
   NSArray *urls = [pboard readObjectsForClasses:@[ [NSURL class] ] options:nil];
   for (NSURL *u in urls) {
     if ([u isFileURL]) {
-      if ([u path]) data->files.push_back(std::string([[u path] UTF8String]));
-    } else if ([u absoluteString]) {
-      data->urls.push_back(std::string([[u absoluteString] UTF8String]));
+      std::string p = toStd([u path]);
+      if (!p.empty()) data->files.push_back(p);
+    } else {
+      std::string s = toStd([u absoluteString]);
+      if (!s.empty()) data->urls.push_back(s);
     }
   }
 
@@ -45,12 +54,12 @@ struct ServiceData {
     }
     if (png) {
       NSString *b64 = [png base64EncodedStringWithOptions:0];
-      data->images.push_back({ std::string([b64 UTF8String]), std::string("image/png") });
+      data->images.push_back({ toStd(b64), std::string("image/png") });
     }
   }
 
   if (g_tsfn) {
-    g_tsfn.NonBlockingCall(data, [](Napi::Env env, Napi::Function cb, ServiceData *d) {
+    napi_status st = g_tsfn.NonBlockingCall(data, [](Napi::Env env, Napi::Function cb, ServiceData *d) {
       Napi::Object obj = Napi::Object::New(env);
       if (!d->text.empty()) obj.Set("text", Napi::String::New(env, d->text));
 
@@ -74,6 +83,8 @@ struct ServiceData {
       cb.Call({ obj });
       delete d;
     });
+    // If the call could not be queued, the lambda never runs — free data here.
+    if (st != napi_ok) delete data;
   } else {
     delete data;
   }
@@ -88,6 +99,9 @@ Napi::Value Register(const Napi::CallbackInfo &info) {
     Napi::TypeError::New(env, "register(callback) requires a function").ThrowAsJavaScriptException();
     return env.Undefined();
   }
+  // Intentionally never Release()d: the provider must live for the whole app
+  // lifetime. The retained event-loop ref is harmless in the Electron main
+  // process (Electron/AppKit owns process lifetime, not node's loop draining).
   g_tsfn = Napi::ThreadSafeFunction::New(env, info[0].As<Napi::Function>(), "InkletServices", 0, 1);
   dispatch_async(dispatch_get_main_queue(), ^{
     g_provider = [[InkletServiceProvider alloc] init];
