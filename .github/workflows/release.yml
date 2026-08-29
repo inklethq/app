@@ -4,12 +4,23 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Native macOS app version
+        required: true
+        default: "0.1.0"
+      release_tag:
+        description: Existing GitHub Release that receives the macOS assets
+        required: true
+        default: "v0.1.1"
 
 permissions:
   contents: write
 
 jobs:
   create-release:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,40 +42,113 @@ jobs:
 
   build-mac:
     needs: create-release
-    runs-on: macos-latest
+    if: >-
+      always() &&
+      (github.event_name == 'workflow_dispatch' || needs.create-release.result == 'success')
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Decode Apple API Key
-        run: |
-          mkdir -p "$HOME/private_keys"
-          KEY_PATH="$HOME/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8"
-          printf '%s' "${{ secrets.APPLE_API_KEY }}" | base64 --decode > "$KEY_PATH"
-          if ! head -n1 "$KEY_PATH" | grep -q 'BEGIN PRIVATE KEY'; then
-            printf '%s' "${{ secrets.APPLE_API_KEY }}" > "$KEY_PATH"
-          fi
-          echo "APPLE_API_KEY=$KEY_PATH" >> "$GITHUB_ENV"
-
-      - name: Build & Publish (macOS)
-        run: pnpm build && pnpm exec electron-builder --mac --publish always
+      - name: Resolve release metadata
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          VERSION="$INPUT_VERSION"
+          RELEASE_TAG="$INPUT_RELEASE_TAG"
+          if [[ -z "$VERSION" ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          if [[ -z "$RELEASE_TAG" ]]; then RELEASE_TAG="$GITHUB_REF_NAME"; fi
+          echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+
+      - name: Import Developer ID certificate
+        env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/inklet-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          CERTIFICATE_DATA="$CSC_LINK"
+          if [[ "$CERTIFICATE_DATA" == *,* ]]; then
+            CERTIFICATE_DATA="${CERTIFICATE_DATA#*,}"
+          fi
+          CERTIFICATE_DATA="${CERTIFICATE_DATA#base64:}"
+          printf '%s' "$CERTIFICATE_DATA" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$CSC_KEY_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          MAC_SIGN_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -n1)"
+          test -n "$MAC_SIGN_IDENTITY"
+          echo "MAC_SIGN_IDENTITY=$MAC_SIGN_IDENTITY" >> "$GITHUB_ENV"
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Build native universal app
+        env:
+          INKLET_ARCHS: arm64,x86_64
+          INKLET_BUILD_NUMBER: ${{ github.run_number }}
+          INKLET_RELEASE: 1
+        run: |
+          export INKLET_VERSION="$RELEASE_VERSION"
+          export INKLET_SIGN_IDENTITY="$MAC_SIGN_IDENTITY"
+          ./macos/Scripts/build-app.sh release
+
+      - name: Create signed disk image
+        run: |
+          export INKLET_VERSION="$RELEASE_VERSION"
+          export INKLET_SIGN_IDENTITY="$MAC_SIGN_IDENTITY"
+          ./macos/Scripts/package-dmg.sh
+
+      - name: Decode notarization key
+        env:
+          APPLE_API_KEY_VALUE: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8"
+          printf '%s' "$APPLE_API_KEY_VALUE" | base64 --decode > "$KEY_PATH" || true
+          if ! head -n1 "$KEY_PATH" | grep -q 'BEGIN PRIVATE KEY'; then
+            printf '%s' "$APPLE_API_KEY_VALUE" > "$KEY_PATH"
+          fi
+          echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Notarize and staple
+        env:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          DMG="macos/dist/inklet-$RELEASE_VERSION-mac-universal.dmg"
+          xcrun notarytool submit "$DMG" \
+            --key "$APPLE_API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+          cp "$DMG" macos/dist/inklet-macOS.dmg
+
+      - name: Upload native macOS release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            "macos/dist/inklet-$RELEASE_VERSION-mac-universal.dmg" \
+            macos/dist/inklet-macOS.dmg \
+            --clobber
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$SIGNING_KEYCHAIN" 2>/dev/null || true
 
   build-win:
     needs: create-release
+    if: github.event_name == 'push'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -85,6 +169,7 @@ jobs:
 
   publish-release:
     needs: [build-mac, build-win]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
