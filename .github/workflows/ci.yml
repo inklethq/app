@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm build
+
+  native-macos:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate packaging scripts
+        run: |
+          bash -n macos/Scripts/build-app.sh
+          bash -n macos/Scripts/package-dmg.sh
+
+      - name: Build universal SwiftUI client
+        working-directory: macos
+        run: xcrun swift build -c release --arch arm64 --arch x86_64

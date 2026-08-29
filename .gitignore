@@ -4,3 +4,6 @@ dist-electron/
 release/
 .superpowers/
 native/services/build/
+macos/.build/
+macos/build/
+macos/dist/
