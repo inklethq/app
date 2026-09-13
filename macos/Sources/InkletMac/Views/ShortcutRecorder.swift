@@ -28,6 +28,10 @@ struct ShortcutRecorder: View {
         .help(isRecording ? "Press a combination, or esc to cancel"
                           : "Click to change the shortcut")
         .onDisappear(perform: stop)
+        .contextMenu {
+            Button("Left Option + Right Option") { store.update(to: .bothOptions) }
+            Button("Reset to Default") { store.resetToDefault() }
+        }
         .overlay(alignment: .trailing) {
             if store.isUnavailable && !isRecording {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -66,8 +70,9 @@ struct ShortcutRecorder: View {
     private func start() {
         guard !isRecording else { return }
         isRecording = true
+        store.isRecording = true
 
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             handle(event)
             return nil          // swallow it, whatever it was
         }
@@ -75,11 +80,19 @@ struct ShortcutRecorder: View {
 
     private func stop() {
         isRecording = false
+        store.isRecording = false
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
     }
 
     private func handle(_ event: NSEvent) {
+        if event.type == .flagsChanged {
+            if OptionChord.matches(flags: event.modifierFlags.rawValue) {
+                store.update(to: .bothOptions)
+                stop()
+            }
+            return
+        }
         switch Int(event.keyCode) {
         case kVK_Escape:
             stop()

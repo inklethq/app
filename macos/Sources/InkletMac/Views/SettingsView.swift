@@ -1,14 +1,20 @@
 import SwiftUI
 
+enum SettingsTab: String { case general, account, notifications, about }
+
 struct SettingsView: View {
+    @AppStorage("settingsTab") private var selection: SettingsTab = .general
+    @State private var heights: [SettingsTab: CGFloat] = [:]
     var body: some View {
-        TabView {
+        TabView(selection: $selection) {
             GeneralSettings()
-                .tabItem { Label("General", systemImage: "gearshape") }
+                .tabItem { Label("General", systemImage: "gearshape") }.tag(SettingsTab.general)
             AccountSettings()
-                .tabItem { Label("Account", systemImage: "person.crop.circle") }
+                .tabItem { Label("Account", systemImage: "person.crop.circle") }.tag(SettingsTab.account)
             NotificationSettings()
-                .tabItem { Label("Notifications", systemImage: "bell") }
+                .tabItem { Label("Notifications", systemImage: "bell") }.tag(SettingsTab.notifications)
+            AboutSettings()
+                .tabItem { Label("About", systemImage: "info.circle") }.tag(SettingsTab.about)
         }
         .tint(Ink.text)
         .background(Ink.bg)
@@ -16,7 +22,8 @@ struct SettingsView: View {
         // reads blue-grey next to the app's flat background. Paint it to match.
         .toolbarBackground(Ink.bg, for: .windowToolbar)
         .background(WindowStyler().frame(width: 0, height: 0))
-        .frame(width: 520, height: 400)
+        .frame(width: 520, height: min(heights[selection] ?? 400, (NSScreen.main?.visibleFrame.height ?? 800) - 140))
+        .onPreferenceChange(SettingsHeightKey.self) { heights.merge($0) { _, new in new } }
     }
 }
 
@@ -26,7 +33,7 @@ private struct GeneralSettings: View {
     @AppStorage("showWeather") private var showWeather = true
 
     var body: some View {
-        SettingsPage {
+        SettingsPage(tab: .general) {
             SettingsGroup("Startup") {
                 SettingRow(title: "Launch at login",
                            subtitle: "Start in the menu bar when you log in") {
@@ -59,7 +66,7 @@ private struct AccountSettings: View {
     @Environment(Session.self) private var session
 
     var body: some View {
-        SettingsPage {
+        SettingsPage(tab: .account) {
             InkCard(padding: 16) {
                 HStack(spacing: 14) {
                     Text(model.account.username.prefix(1).lowercased())
@@ -117,7 +124,7 @@ private struct NotificationSettings: View {
     @AppStorage("notifyOffline") private var offline = false
 
     var body: some View {
-        SettingsPage {
+        SettingsPage(tab: .notifications) {
             SettingsGroup("Alerts") {
                 SettingRow(title: "Content delivered",
                            subtitle: "When a push reaches a display's queue") {
@@ -137,9 +144,66 @@ private struct NotificationSettings: View {
     }
 }
 
+private struct AboutSettings: View {
+    private var version: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "" }
+    private var build: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "" }
+
+    var body: some View {
+        SettingsPage(tab: .about, bottomPadding: 32) {
+            VStack(spacing: 12) {
+                Image(nsImage: NSApplication.shared.applicationIconImage)
+                    .resizable().scaledToFit().frame(width: 96, height: 96)
+                    .padding(.bottom, 4)
+                Text("inklet").font(.system(size: 24, weight: .bold))
+                Text("Version \(version) (\(build))")
+                    .font(.body).foregroundStyle(.secondary).textSelection(.enabled)
+                VStack(spacing: 24) {
+                    HStack(spacing: 8) {
+                        Link("Privacy Policy", destination: URL(string: "https://www.iminklet.com/privacy-policy")!)
+                        Text("·").foregroundStyle(.tertiary)
+                        Button("Terms of Service") { }
+                            .buttonStyle(.link)
+                            .disabled(true)
+                            .help("Coming soon")
+                    }
+                    .font(.body)
+                    VStack(spacing: 3) {
+                        Text("© \(String(Calendar.current.component(.year, from: Date()))) inklet LLC.")
+                        Text("All rights reserved.")
+                    }
+                    .font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 8)
+        }
+    }
+}
+
+/// Routes the standard application-menu item into the existing settings scene.
+struct AboutSettingsCommand: View {
+    @Environment(\.openSettings) private var openSettings
+    @AppStorage("settingsTab") private var selection: SettingsTab = .general
+    var body: some View {
+        Button("About inklet") {
+            selection = .about
+            openSettings()
+        }
+    }
+}
+
+private struct SettingsHeightKey: PreferenceKey {
+    static let defaultValue: [SettingsTab: CGFloat] = [:]
+    static func reduce(value: inout [SettingsTab: CGFloat], nextValue: () -> [SettingsTab: CGFloat]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
 // MARK: - Shared settings chrome
 
 private struct SettingsPage<Content: View>: View {
+    let tab: SettingsTab
+    var bottomPadding: CGFloat = 22
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -149,7 +213,13 @@ private struct SettingsPage<Content: View>: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 18)
-            .padding(.bottom, 22)
+            .padding(.bottom, bottomPadding)
+            .fixedSize(horizontal: false, vertical: true)
+            .background {
+                GeometryReader { geometry in
+                    Color.clear.preference(key: SettingsHeightKey.self, value: [tab: geometry.size.height])
+                }
+            }
         }
         .scrollIndicators(.never)
         .background(Ink.bg)

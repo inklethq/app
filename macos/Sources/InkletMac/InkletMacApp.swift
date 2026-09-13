@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct InkletMacApp: App {
+    @NSApplicationDelegateAdaptor(WidgetRouter.self) private var widgetRouter
     @State private var session = Session()
     @State private var model = AppModel()
     @Environment(\.openWindow) private var openWindow
@@ -22,10 +23,16 @@ struct InkletMacApp: App {
             AppGate()
                 .environment(session)
                 .environment(model)
+                .environmentObject(model.virtualDisplays)
+                .environment(widgetRouter)
+                .onAppear {
+                    widgetRouter.openMainWindow = { openWindow(id: Self.mainWindowID) }
+                }
         }
         .defaultSize(width: 1080, height: 720)
         .windowStyle(.hiddenTitleBar)
         .commands {
+            CommandGroup(replacing: .appInfo) { AboutSettingsCommand() }
             // A single-instance Window contributes no "New Window" item, so
             // closing it would otherwise leave no way back into the app. This
             // reopens the one window (or focuses it if it's already up).
@@ -33,7 +40,7 @@ struct InkletMacApp: App {
                 Button("inklet Window") { openWindow(id: Self.mainWindowID) }
                     .keyboardShortcut("n")
 
-                Button("Push to inklet…") { model.startComposing() }
+                Button("Create Presentation…") { model.startComposing() }
                     .keyboardShortcut("i", modifiers: [.command, .shift])
                     .disabled(session.user == nil)
             }
@@ -51,8 +58,10 @@ struct InkletMacApp: App {
             SettingsView()
                 .environment(session)
                 .environment(model)
+                .environmentObject(model.virtualDisplays)
                 .environment(ShortcutStore.shared)
         }
+        .windowResizability(.contentSize)
     }
 }
 

@@ -1,14 +1,20 @@
 import SwiftUI
+import InkletPresentationKit
 
 enum SidebarItem: Hashable {
     case home
     case knowledge
+    case newDisplay
+    case virtualDisplayDetail(UUID)
     case device(String)
     case pair
 }
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @EnvironmentObject private var virtuals: VirtualDisplayController
+    @Environment(WidgetRouter.self) private var widgetRouter
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selection: SidebarItem? = .home
 
     var body: some View {
@@ -31,8 +37,8 @@ struct RootView: View {
                     // One composer entry point for the whole window, so the popover
                     // always has a stable anchor no matter which page is showing.
                     ToolbarItem {
-                        Button("Push", systemImage: "square.and.pencil") { model.startComposing() }
-                            .help("Push content to your displays (\(ShortcutStore.shared.shortcut.display))")
+                        Button("Create", systemImage: "square.and.pencil") { model.startComposing() }
+                            .help("Create an inklet Presentation (\(ShortcutStore.shared.shortcut.display))")
                     }
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -41,12 +47,33 @@ struct RootView: View {
                     }
                 }
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await model.virtualDisplays.refresh() } }
+        }
         .tint(Ink.text)
         .background(WindowStyler(constrainSize: true).frame(width: 0, height: 0))
         // A display that vanishes (unbound elsewhere, or here) must not leave the
         // detail pane pointed at a dead id.
         .onChange(of: model.devices.map(\.id)) { _, ids in
             if case .device(let id) = selection, !ids.contains(id) { selection = .home }
+        }
+        .onChange(of: virtuals.displays.map(\.id)) { _, ids in
+            if case .virtualDisplayDetail(let id) = selection, !ids.contains(id), !virtuals.busy { selection = .home }
+        }
+        .onChange(of: widgetRouter.pending, initial: true) { _, destination in
+            guard let destination else { return }
+            widgetRouter.pending = nil
+            switch destination {
+            case .send: model.startComposing()
+            case .activity: selection = .home
+            case .display:
+                model.reloadVirtualDisplay()
+                if let id = widgetRouter.pendingDisplayID {
+                    selection = .virtualDisplayDetail(id)
+                    widgetRouter.pendingDisplayID = nil
+                } else if let display = virtuals.displays.first { selection = .virtualDisplayDetail(display.id) }
+                else { selection = .newDisplay }
+            }
         }
     }
 
@@ -57,6 +84,10 @@ struct RootView: View {
             HomeView(selection: $selection)
         case .knowledge:
             KnowledgeView()
+        case .virtualDisplayDetail(let id):
+            NavigationStack { VirtualDisplayDetailView(id: id).id(id) }
+        case .newDisplay:
+            NewDisplayView(selection: $selection)
         case .device(let id):
             if let device = model.device(withID: id) {
                 DeviceDetailView(device: device)
@@ -65,7 +96,12 @@ struct RootView: View {
                 ContentUnavailableView("Display not found", systemImage: "questionmark.square.dashed")
             }
         case .pair:
-            PairDisplayView(selection: $selection)
+            VStack(alignment: .leading, spacing: 0) {
+                Button { selection = .newDisplay } label: { Label("New Display", systemImage: "chevron.left") }
+                    .buttonStyle(.plain).font(.system(size: 13)).foregroundStyle(Ink.secondary)
+                    .padding(.horizontal, 28).padding(.top, 18)
+                PairDisplayView(selection: $selection)
+            }
         case nil:
             ContentUnavailableView("Nothing selected", systemImage: "sidebar.left")
         }
@@ -74,6 +110,7 @@ struct RootView: View {
 
 private struct Sidebar: View {
     @Environment(AppModel.self) private var model
+    @EnvironmentObject private var virtuals: VirtualDisplayController
     @Binding var selection: SidebarItem?
 
     var body: some View {
@@ -104,7 +141,12 @@ private struct Sidebar: View {
                         }
                     }
                 }
-                if model.devices.isEmpty && !model.isLoading {
+                ForEach(virtuals.displays) { display in
+                    SidebarRow(icon: "macwindow", title: display.name,
+                               item: .virtualDisplayDetail(display.id), selection: $selection)
+                        .help(display.profile?.title ?? "Virtual Display")
+                }
+                if model.devices.isEmpty && virtuals.displays.isEmpty && !model.isLoading && !virtuals.busy {
                     Text("No displays yet")
                         .font(.system(size: 13))
                         .foregroundStyle(Ink.muted)
@@ -112,7 +154,7 @@ private struct Sidebar: View {
                         .padding(.vertical, 6)
                 }
                 SidebarRow(icon: "plus", title: "New Display",
-                           item: .pair, selection: $selection, dim: true)
+                           item: .newDisplay, selection: $selection, dim: true)
             }
             .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
             .listRowSeparator(.hidden)

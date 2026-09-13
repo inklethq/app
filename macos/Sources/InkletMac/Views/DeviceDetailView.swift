@@ -12,33 +12,14 @@ struct DeviceDetailView: View {
 
     private var history: [Push] { model.history(for: device) }
 
-    /// Measured on the scroll view rather than around it — see HomeView.
-    @State private var width: CGFloat = 900
-
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                // Side-by-side once there is room for a readable spec column. Both
-                // cards stretch to the taller one so their bottoms line up.
-                if width > 820 {
-                    HStack(alignment: .top, spacing: 20) {
-                        currentlyShowing
-                            .frame(maxWidth: width * 0.52)
-                        specs
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    currentlyShowing
-                    specs
-                }
-                historySection
-            }
-            .padding(28)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        DisplayDetailLayout {
+            currentlyShowing
+        } information: {
+            specs
+        } history: {
+            historySection
         }
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-        .scrollIndicators(.never)
-        .background(Ink.bg)
         .navigationTitle(device.displayName)
         .navigationSubtitle(device.hwId)
         .task(id: device.id) {
@@ -81,33 +62,13 @@ struct DeviceDetailView: View {
     }
 
     private var currentlyShowing: some View {
-        InkCard(padding: 16, stretches: true) {
-            // Status sits at the top as this card's own header; the preview and
-            // its caption share the space that's left, centred, so the card reads
-            // right at whatever height the spec column forces on it.
-            VStack(spacing: 0) {
-                statusHeader
-
-                // Asymmetric minimums on purpose. With slack the two spacers split
-                // it evenly and the preview centres; without slack (this is usually
-                // the taller card) the top keeps its 14pt gap under the header and
-                // the bottom collapses to the card's own inset, instead of stacking
-                // an extra 14pt on top of it.
-                Spacer(minLength: 14)
-
-                VStack(spacing: 12) {
-                    DisplayFrame(image: model.preview(for: device),
-                                 title: history.first?.title,
-                                 subtitle: history.first?.summary,
-                                 offline: !device.online)
-                    // Doubles as the transient home for the Show Next confirmation.
-                    Text(queueNotice ?? history.first.map { "Pushed \(relativeTime($0.createdAt))" } ?? "Nothing on screen yet")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Ink.muted)
-                }
-
-                Spacer(minLength: 0)
-            }
+        DisplayPreviewCard {
+            statusHeader
+        } preview: {
+            DisplayFrame(image: model.preview(for: device), title: history.first?.title,
+                         subtitle: history.first?.summary, offline: !device.online)
+        } caption: {
+            Text(queueNotice ?? history.first.map { "Pushed \(relativeTime($0.createdAt))" } ?? "Nothing on screen yet")
         }
     }
 

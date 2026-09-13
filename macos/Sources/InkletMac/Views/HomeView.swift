@@ -1,7 +1,9 @@
 import SwiftUI
+import InkletPresentationKit
 
 struct HomeView: View {
     @Environment(AppModel.self) private var model
+    @EnvironmentObject private var virtuals: VirtualDisplayController
     @Binding var selection: SidebarItem?
 
     /// Measured on the scroll view itself rather than with a GeometryReader wrapped
@@ -48,7 +50,7 @@ struct HomeView: View {
         } label: {
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Push something")
+                    Text("Create a Presentation")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(Ink.bg)
                     Text("Text, links, images or files — or press \(ShortcutStore.shared.shortcut.display) from any app")
@@ -98,7 +100,7 @@ struct HomeView: View {
                 }
             }
 
-            if model.devices.isEmpty {
+            if model.devices.isEmpty && virtuals.displays.isEmpty {
                 emptyDisplays
             } else {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: columns), spacing: 16) {
@@ -109,6 +111,21 @@ struct HomeView: View {
                             DisplayCard(device: device, preview: model.preview(for: device))
                         }
                         .buttonStyle(.plain)
+                    }
+                    ForEach(virtuals.displays) { display in
+                        Button { selection = .virtualDisplayDetail(display.id) } label: {
+                            InkCard(padding: 14) {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    VirtualFramePreview(data: virtuals.frames[display.id]?.imageData)
+                                        .frame(height: 170).frame(maxWidth: .infinity)
+                                        .background(Ink.paperWhite, in: .rect(cornerRadius: Ink.screenCorner))
+                                    Label(display.name, systemImage: "macwindow")
+                                        .font(.system(size: 14, weight: .medium)).foregroundStyle(Ink.text)
+                                    Text(display.profile?.title ?? "Virtual Display")
+                                        .font(.system(size: 12)).foregroundStyle(Ink.muted)
+                                }
+                            }
+                        }.buttonStyle(.plain)
                     }
                 }
             }
@@ -123,18 +140,18 @@ struct HomeView: View {
                     .font(.system(size: 20, weight: .light))
                     .foregroundStyle(Ink.muted)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(model.isLoading ? "Loading your displays…" : "No displays paired yet")
+                    Text(model.isLoading || virtuals.busy ? "Loading your displays…" : "No displays yet")
                         .font(.system(size: 14))
                         .foregroundStyle(Ink.text)
                     Text(model.isLoading
                          ? "One moment."
-                         : "Tap your display's NFC tag with your iPhone to pair it.")
+                         : "Connect a hardware display or create a Virtual Display for your Widget.")
                         .font(.system(size: 12))
                         .foregroundStyle(Ink.muted)
                 }
                 Spacer(minLength: 8)
                 if !model.isLoading {
-                    Button("How to pair") { selection = .pair }
+                    Button("New Display") { selection = .newDisplay }
                         .buttonStyle(.plain)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(Ink.text)

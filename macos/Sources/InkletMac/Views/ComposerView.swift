@@ -1,3 +1,4 @@
+import InkletPresentationKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -8,7 +9,9 @@ struct ComposerView: View {
 
     @State private var text = ""
     @State private var mode: Mode = .auto
-    @State private var targetID: String?
+    @State private var destination: ComposerDestination?
+    @State private var generationID = UUID()
+    @State private var virtualBaseRevision: Int64?
     @State private var attachments: [Attachment] = []
     @State private var isSending = false
     @State private var error: String?
@@ -40,7 +43,14 @@ struct ComposerView: View {
     /// Tahoe rounds panels at roughly 22pt; inset by 12 leaves 10 here.
     private let editorCorner: CGFloat = 10
 
-    private var target: Device? { model.devices.first { $0.id == targetID } }
+    private var target: Device? {
+        guard case .hardware(let id) = destination else { return nil }
+        return model.devices.first { $0.id == id }
+    }
+    private var virtualTargetID: UUID? {
+        guard case .virtual(let id) = destination else { return nil }
+        return id
+    }
 
     /// Only offered while the field is untouched — once you start typing, the
     /// suggestion is no longer what you meant.
@@ -84,9 +94,16 @@ struct ComposerView: View {
     private func syncTarget() {
         if let target = model.composerTarget {
             mode = .manual
-            targetID = target.id
-        } else if targetID == nil {
-            targetID = model.devices.first?.id
+            destination = .hardware(target.id)
+        } else if let id = model.composerVirtualTargetID {
+            mode = .manual
+            destination = .virtual(id)
+        } else {
+            mode = .auto
+            if destination == nil {
+                destination = model.devices.first.map { .hardware($0.id) }
+                    ?? model.virtualDisplays.displays.first.map { .virtual($0.id) }
+            }
         }
     }
 
@@ -127,6 +144,11 @@ struct ComposerView: View {
 
     private var manualBlocker: String? {
         guard mode == .manual else { return nil }
+        if virtualTargetID != nil {
+            if !attachments.isEmpty && manualImage == nil { return "Choose a single image, or send text without attachments. Use Auto for links and files." }
+            if text.unicodeScalars.count > 1000 { return "Use up to 1,000 characters for this display." }
+            return nil
+        }
         if target == nil { return "Pick a display to send to." }
         if manualImage == nil {
             return "Sending straight to a display works with a single image. Use Auto for text, links and files."
@@ -135,6 +157,13 @@ struct ComposerView: View {
     }
 
     var body: some View {
+        composerBody
+            .onChange(of: text) { _, _ in generationID = UUID(); virtualBaseRevision = nil }
+            .onChange(of: attachments.map { $0.id }) { _, _ in generationID = UUID(); virtualBaseRevision = nil }
+            .onChange(of: destination) { _, _ in generationID = UUID(); virtualBaseRevision = nil; error = nil }
+            .onChange(of: mode) { _, _ in error = nil }
+    }
+    private var composerBody: some View {
         // The toolbar sits directly under the editor and nothing grows above it,
         // so the buttons never move. Attachments and notices push the panel's
         // bottom edge down instead of shifting what's under the pointer.
@@ -294,12 +323,8 @@ struct ComposerView: View {
             Spacer(minLength: 8)
 
             if mode == .manual {
-                Picker("Display", selection: $targetID) {
-                    ForEach(model.devices) { Text($0.displayName).tag(Optional($0.id)) }
-                }
-                .labelsHidden()
-                .fixedSize()
-                .disabled(model.devices.isEmpty)
+                ComposerDestinationPicker(controller: model.virtualDisplays, devices: model.devices, selection: $destination)
+                    .frame(maxWidth: 160)
             }
 
             Picker("Mode", selection: $mode) {
@@ -414,15 +439,23 @@ struct ComposerView: View {
 
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let payload = attachments
+        let selectedMode = mode
+        let selectedVirtualID = virtualTargetID
+        let selectedDevice = target
+        let image = manualImage
 
         Task {
             defer { isSending = false }
             do {
-                if mode == .manual, let device = target, let image = manualImage {
+                if selectedMode == .manual, let device = selectedDevice, let image {
                     try await model.sendDirect(
                         image: .init(filename: image.filename, contentType: image.contentType, data: image.data),
                         to: device,
                         title: body)
+                } else if selectedMode == .manual, let id = selectedVirtualID {
+                    if virtualBaseRevision == nil { virtualBaseRevision = model.virtualDisplays.displays.first { $0.id == id }?.revision }
+                    guard let virtualBaseRevision else { throw VirtualDisplayError.message("This display is unavailable.") }
+                    try await model.sendDirect(text: body, image: image?.data, to: id, requestID: generationID, baseRevision: virtualBaseRevision)
                 } else {
                     let files = payload.filter { !$0.isLink }.map {
                         InkletAPI.Attachment(filename: $0.filename, contentType: $0.contentType, data: $0.data)
@@ -430,12 +463,39 @@ struct ComposerView: View {
                     let links = payload.compactMap(\.link)
                     try await model.send(text: body, files: files, links: links)
                 }
+                generationID = UUID()
                 text = ""
                 attachments = []
                 ComposerPanelController.shared.hide()
             } catch {
                 self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
             }
+        }
+    }
+}
+
+private enum ComposerDestination: Hashable {
+    case hardware(String)
+    case virtual(UUID)
+}
+
+private struct ComposerDestinationPicker: View {
+    @ObservedObject var controller: VirtualDisplayController
+    let devices: [Device]
+    @Binding var selection: ComposerDestination?
+    private var available: [ComposerDestination] {
+        devices.map { .hardware($0.id) } + controller.displays.map { .virtual($0.id) }
+    }
+    var body: some View {
+        Picker("Display", selection: $selection) {
+            Text("Choose display…").tag(nil as ComposerDestination?)
+            ForEach(devices) { Text($0.displayName).tag(Optional(ComposerDestination.hardware($0.id))) }
+            ForEach(controller.displays) { Text($0.name).tag(Optional(ComposerDestination.virtual($0.id))) }
+        }
+        .labelsHidden()
+        .disabled(available.isEmpty)
+        .onChange(of: available) { _, values in
+            if let selection, !values.contains(selection) { self.selection = nil }
         }
     }
 }

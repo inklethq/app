@@ -1,4 +1,5 @@
 import Foundation
+import InkletPresentationKit
 
 // Wire types for the inklet backend. Field names and optionality follow the Go
 // handlers exactly (internal/iot/api.go, internal/item/handler.go,
@@ -134,6 +135,39 @@ struct ConfirmResponseDTO: Codable, Sendable {
     var itemId: String?
     var status: String?
     var failed: [Int]?
+}
+
+// MARK: - Targetless Presentations (/api/app/v1)
+
+struct PresentationUploadTicketDTO: Codable, Sendable {
+    var assetIndex: Int
+    var url: String
+    var fields: [String: String]
+    var expiresAt: String
+}
+
+struct PresentationContentUploadDTO: Codable, Sendable {
+    var status: String
+    var failedAssetIndexes: [Int]
+}
+
+struct PresentationContentProcessingDTO: Codable, Sendable {
+    var stage: String?
+    var warnings: [PresentationProblemDTO]
+    var error: PresentationProblemDTO?
+}
+
+struct PresentationContentDTO: Codable, Sendable {
+    var id: String
+    var state: String
+    var upload: PresentationContentUploadDTO
+    var processing: PresentationContentProcessingDTO
+    var presentationIds: [String]
+}
+
+struct CreatePresentationContentResponseDTO: Codable, Sendable {
+    var content: PresentationContentDTO
+    var uploadTickets: [PresentationUploadTicketDTO]
 }
 
 /// `POST /api/devices/{id}/custom-push/upload` — the file service's own ticket

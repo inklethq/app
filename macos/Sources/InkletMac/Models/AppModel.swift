@@ -1,16 +1,28 @@
 import AppKit
 import Foundation
 import Observation
+import InkletPresentationKit
+import WidgetKit
 
 @MainActor
 @Observable
 final class AppModel {
+    let virtualDisplays: VirtualDisplayController
+    init() {
+        virtualDisplays = VirtualDisplayController { path, method, body, headers in
+            try await InkletAPI.shared.virtualDisplayRequest(path, method: method, body: body, headers: headers)
+        }
+    }
     var account = Account(username: "", email: "", plan: "free")
     var devices: [Device] = []
     var pushes: [String: [Push]] = [:]      // deviceID → history, newest first
     var knowledge: [KnowledgeItem] = []
     var activityByDay: [Date: Int] = [:]
+    private(set) var virtualDisplay: CachedPresentationSnapshot?
+    private var widgetSession: WidgetSession?
+    private let widgetStore = WidgetDataStore()
 
+    var composerVirtualTargetID: UUID?
     var composerTarget: Device?             // set when pushing from a device page
 
     /// What was in front when the composer was summoned. Offered as a grey
@@ -34,14 +46,40 @@ final class AppModel {
     private var previewTasks: Set<String> = []
 
     private var session: Session?
+    private var accountGeneration = UUID()
     private var knowledgeDetailTasks: Set<String> = []
 
     func attach(session: Session) {
         self.session = session
-        if let user = session.user { account = Account(dto: user) }
+        accountGeneration = UUID()
+        if let user = session.user {
+            virtualDisplays.activate(accountID: user.id)
+            account = Account(dto: user)
+            widgetSession = nil
+            virtualDisplay = nil
+            do {
+                widgetSession = try widgetStore.activate(accountID: user.id)
+                reloadVirtualDisplay()
+                WidgetCenter.shared.reloadAllTimelines()
+            } catch {
+                loadError = "Couldn't share data with your desktop widgets."
+            }
+        }
     }
 
     func reset() {
+        virtualDisplays.signOut()
+        accountGeneration = UUID()
+        widgetSession = nil
+        virtualDisplay = nil
+        try? widgetStore.signOut()
+        // Remove the pre-account-scoped cache left by early development builds.
+        if !WidgetStorage.isLocalPreview { try? PresentationCache().clear() }
+        WidgetCenter.shared.reloadAllTimelines()
+        account = Account(username: "", email: "", plan: "free")
+        suggestion = nil
+        composerTarget = nil
+        composerVirtualTargetID = nil
         devices = []
         pushes = [:]
         knowledge = []
@@ -72,9 +110,10 @@ final class AppModel {
     /// Both halves are main-actor bound, so this isn't parallelism — it just
     /// lets the second request go out while the first is waiting on the network.
     private func loadEverything() async {
+        async let virtuals: Void = virtualDisplays.refresh()
         async let devices: Void = loadDevices()
         async let knowledge: Void = loadKnowledge()
-        _ = await (devices, knowledge)
+        _ = await (devices, knowledge, virtuals)
     }
 
     private func loadDevices() async {
@@ -93,24 +132,34 @@ final class AppModel {
     /// Pulls enough pages to cover the heatmap window, then fills in titles for
     /// the rows the list actually shows.
     private func loadKnowledge() async {
+        let expectedGeneration = accountGeneration
         let window = Calendar.current.date(byAdding: .day, value: -7 * 26, to: .now) ?? .now
         var collected: [KnowledgeItem] = []
+        var seenIDs: Set<String> = []
         var page = 1
-        let pageCap = 6
 
         do {
-            while page <= pageCap {
+            while true {
+                try Task.checkCancellation()
                 let result = try await InkletAPI.shared.rawItems(page: page, limit: 50)
-                collected.append(contentsOf: result.items.map(KnowledgeItem.init(dto:)))
+                guard accountGeneration == expectedGeneration else { return }
+                let newItems = result.items.filter { seenIDs.insert($0.id).inserted }
+                // A repeated page must not loop forever or publish an incomplete
+                // season. Retain the previous widget snapshot on this failure.
+                if !result.items.isEmpty && newItems.isEmpty { throw APIError.decoding }
+                collected.append(contentsOf: newItems.map(KnowledgeItem.init(dto:)))
                 if result.items.count < 50 { break }
+                if let total = result.total, collected.count >= total { break }
                 if let oldest = collected.last?.createdAt, oldest < window { break }
                 page += 1
             }
         } catch {
+            guard accountGeneration == expectedGeneration else { return }
             await handle(error)
             return
         }
 
+        guard accountGeneration == expectedGeneration, session?.user != nil else { return }
         // Keep whatever titles a previous pass already resolved.
         let existing = Dictionary(knowledge.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         knowledge = collected.map { item in
@@ -134,6 +183,14 @@ final class AppModel {
             counts[day, default: 0] += 1
         }
         activityByDay = counts
+        if let widgetSession {
+            do {
+                try widgetStore.storeActivity(ActivitySnapshot(counts: counts), for: widgetSession)
+                WidgetCenter.shared.reloadTimelines(ofKind: inkletActivityWidgetKind)
+            } catch {
+                loadError = "Couldn't update the Activity widget."
+            }
+        }
     }
 
     /// The list endpoint selects columns and leaves `content` out, so a title
@@ -268,10 +325,29 @@ final class AppModel {
 
     // MARK: - Sending
 
-    /// Auto: hand the bundle to the pipeline, which decides where it lands.
+    /// Auto lets the existing pipeline decide where the content lands.
     func send(text: String, files: [InkletAPI.Attachment], links: [String]) async throws {
         try await InkletAPI.shared.uploadBundle(mainText: text, files: files, links: links)
         await loadKnowledge()
+    }
+
+    func sendDirect(text: String, image: Data?, to displayID: UUID, requestID: UUID, baseRevision: Int64) async throws {
+        guard session?.user != nil else { throw APIError.notAuthenticated }
+        guard let display = virtualDisplays.displays.first(where: { $0.id == displayID }) else {
+            throw VirtualDisplayError.message("This display is unavailable.")
+        }
+        let png = try image.map { try VirtualDisplayRenderer.image($0, size: display.canvasSize) }
+            ?? VirtualDisplayRenderer.text(text, size: display.canvasSize)
+        guard await virtualDisplays.generateAndPublish(id: displayID, requestID: requestID, frameID: requestID,
+            baseRevision: baseRevision, assets: [.binary(filename: "frame.png", contentType: "image/png", data: png)],
+            mode: "hardcode", text: String(String.UnicodeScalarView(text.unicodeScalars.prefix(1000)))) else {
+            throw VirtualDisplayError.message(virtualDisplays.error ?? "Couldn't send to this display. Try again.")
+        }
+        await loadKnowledge()
+    }
+
+    func reloadVirtualDisplay() {
+        virtualDisplay = try? widgetStore.presentation()
     }
 
     /// Manual: put one image straight on a chosen display. The backend's
@@ -299,6 +375,14 @@ final class AppModel {
 extension AppModel {
     func startComposing(target: Device? = nil) {
         composerTarget = target
+        composerVirtualTargetID = nil
+        captureContext()
+        present()
+    }
+
+    func startComposing(virtualDisplayID: UUID) {
+        composerTarget = nil
+        composerVirtualTargetID = virtualDisplayID
         captureContext()
         present()
     }
@@ -310,6 +394,7 @@ extension AppModel {
             return
         }
         composerTarget = nil
+        composerVirtualTargetID = nil
         captureContext()
         present()
     }
@@ -338,6 +423,7 @@ extension AppModel {
     /// panel opens with it pre-offered rather than going looking for context.
     func presentComposer(with context: Capture) {
         composerTarget = nil
+        composerVirtualTargetID = nil
         suggestion = context
         present()
     }

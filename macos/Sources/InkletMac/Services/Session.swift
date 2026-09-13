@@ -113,21 +113,15 @@ private final class WebAuthCoordinator: NSObject, ASWebAuthenticationPresentatio
 
     func run(url: URL) async throws -> URL {
         try await withCheckedThrowingContinuation { continuation in
-            let webSession = ASWebAuthenticationSession(url: url, callbackURLScheme: "inklet") { callback, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else if let callback {
-                    continuation.resume(returning: callback)
-                } else {
-                    continuation.resume(throwing: APIError.network)
-                }
-            }
+            let result = WebAuthResultRelay(continuation)
+            let webSession = ASWebAuthenticationSession(
+                url: url, callbackURLScheme: "inklet", completionHandler: result.completion)
             webSession.presentationContextProvider = self
             webSession.prefersEphemeralWebBrowserSession = false
             self.webSession = webSession
 
             if !webSession.start() {
-                continuation.resume(throwing: APIError.network)
+                result.finish(callback: nil, error: APIError.network)
             }
         }
     }

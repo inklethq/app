@@ -34,8 +34,15 @@ jobs:
       - name: Validate packaging scripts
         run: |
           bash -n macos/Scripts/build-app.sh
+          bash -n macos/Scripts/build-widgets.sh
+          bash -n macos/Scripts/widget-configuration.sh
           bash -n macos/Scripts/package-dmg.sh
 
-      - name: Build universal SwiftUI client
+      - name: Test native shared data and widget routing
         working-directory: macos
-        run: xcrun swift build -c release --arch arm64 --arch x86_64
+        run: xcrun swift test
+
+      - name: Package universal app and WidgetKit extension
+        env:
+          INKLET_ARCHS: arm64,x86_64
+        run: ./macos/Scripts/build-app.sh release

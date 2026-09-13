@@ -21,10 +21,8 @@ final class ComposerPanelController {
         self.panel = panel
 
         position(panel)
-        // Bring the app forward so typing lands in the panel. `.nonactivatingPanel`
-        // keeps it from stealing focus when it's merely on screen; this is the
-        // deliberate exception for when the user asked for it.
-        NSApp.activate(ignoringOtherApps: true)
+        // A nonactivating panel takes keyboard focus without raising the app's
+        // main/settings windows or switching away from the current app.
         panel.makeKeyAndOrderFront(nil)
     }
 

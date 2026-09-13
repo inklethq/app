@@ -11,10 +11,22 @@ OUTPUT_DIR="${INKLET_OUTPUT_DIR:-$ROOT_DIR/build}"
 ARCHS="${INKLET_ARCHS:-}"
 SIGN_IDENTITY="${INKLET_SIGN_IDENTITY:--}"
 INSTALL_AFTER_BUILD="${INKLET_INSTALL:-0}"
+source "$SCRIPT_DIR/widget-configuration.sh"
+inklet_configure_widget_group
+
+if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
 
 cd "$ROOT_DIR"
 
-SWIFT_ARGS=(-c "$CONFIGURATION")
+SWIFT_ARGS=(-c "$CONFIGURATION" --product InkletMac)
+if [[ -n "${INKLET_SWIFT_SCRATCH_PATH:-}" ]]; then
+  SWIFT_ARGS+=(--scratch-path "$INKLET_SWIFT_SCRATCH_PATH")
+fi
+if [[ "${INKLET_DISABLE_BUILD_SANDBOX:-0}" == "1" ]]; then
+  SWIFT_ARGS+=(--disable-sandbox)
+fi
 if [[ -n "$ARCHS" ]]; then
   IFS=',' read -r -a ARCH_LIST <<< "$ARCHS"
   for arch in "${ARCH_LIST[@]}"; do
@@ -42,6 +54,18 @@ if [[ -d "$RESOURCE_BUNDLE/Contents/Resources" ]]; then
 else
   cp -R "$RESOURCE_BUNDLE/." "$APP/Contents/Resources/"
 fi
+
+# The app also previews its Virtual Display using the Widget's shared views.
+WIDGET_RESOURCES="$BIN_PATH/InkletMac_InkletPresentationWidget.bundle"
+if [[ -d "$WIDGET_RESOURCES" ]]; then
+  cp -R "$WIDGET_RESOURCES" "$APP/Contents/Resources/"
+fi
+
+INKLET_OUTPUT_DIR="$OUTPUT_DIR" bash "$SCRIPT_DIR/build-widgets.sh" "$CONFIGURATION"
+case "$CONFIGURATION" in debug) XCODE_CONFIGURATION=Debug ;; release) XCODE_CONFIGURATION=Release ;; esac
+WIDGET_DERIVED_DATA="${INKLET_WIDGET_DERIVED_DATA:-$OUTPUT_DIR/WidgetDerivedData}"
+mkdir -p "$APP/Contents/PlugIns"
+cp -R "$WIDGET_DERIVED_DATA/Build/Products/$XCODE_CONFIGURATION/InkletWidgets.appex" "$APP/Contents/PlugIns/"
 
 # Reuse the product's 1024px source icon and let iconutil create the native
 # bundle icon. The temporary iconset never enters the artifact.
@@ -73,6 +97,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>inklet.icns</string>
   <key>LSMinimumSystemVersion</key><string>26.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>InkletAppGroupIdentifier</key><string>$INKLET_APP_GROUP</string>
+  <key>InkletWidgetStorageMode</key><string>$INKLET_WIDGET_STORAGE_MODE</string>
+  <key>CFBundleURLTypes</key>
+  <array><dict>
+    <key>CFBundleURLName</key><string>com.iminklet.mac.widgets</string>
+    <key>CFBundleURLSchemes</key><array><string>inklet-mac</string></array>
+  </dict></array>
   <key>NSAppleEventsUsageDescription</key>
   <string>inklet reads what you're looking at — a browser's address, a Finder selection, or the photo you have open — so the composer can offer it when you summon it.</string>
   <key>NSServices</key>
@@ -97,10 +128,28 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-ENTITLEMENTS="$ROOT_DIR/Resources/InkletMac.entitlements"
+SIGNING_RESOURCES="$OUTPUT_DIR/SigningEntitlements"
+mkdir -p "$SIGNING_RESOURCES"
+ENTITLEMENTS="$SIGNING_RESOURCES/InkletMac.entitlements"
+cp "$ROOT_DIR/Resources/InkletMac.entitlements" "$ENTITLEMENTS"
+WIDGET="$APP/Contents/PlugIns/InkletWidgets.appex"
+WIDGET_ENTITLEMENTS="$SIGNING_RESOURCES/InkletWidgets.entitlements"
+cp "$ROOT_DIR/WidgetExtension/InkletPresentationWidget.entitlements" "$WIDGET_ENTITLEMENTS"
+for entitlement_file in "$ENTITLEMENTS" "$WIDGET_ENTITLEMENTS"; do
+  /usr/libexec/PlistBuddy -c "Set :com.apple.security.application-groups:0 $INKLET_APP_GROUP" "$entitlement_file"
+done
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
+  codesign --force --sign - --entitlements "$WIDGET_ENTITLEMENTS" "$WIDGET"
   codesign --force --sign - --entitlements "$ENTITLEMENTS" "$APP"
 else
+  if [[ -n "${INKLET_WIDGET_PROVISION_PROFILE:-}" ]]; then
+    cp "$INKLET_WIDGET_PROVISION_PROFILE" "$WIDGET/Contents/embedded.provisionprofile"
+  fi
+  if [[ -n "${INKLET_APP_PROVISION_PROFILE:-}" ]]; then
+    cp "$INKLET_APP_PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
+  fi
+  codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp \
+    --entitlements "$WIDGET_ENTITLEMENTS" "$WIDGET"
   codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp \
     --entitlements "$ENTITLEMENTS" "$APP"
 fi

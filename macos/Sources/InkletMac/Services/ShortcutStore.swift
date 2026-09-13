@@ -23,8 +23,12 @@ final class ShortcutStore {
                                         modifiers: UInt32(cmdKey | shiftKey),
                                         key: "I")
 
+        static let bothOptions = Shortcut(keyCode: UInt32.max, modifiers: 0, key: "Left ⌥ + Right ⌥")
+        var isBothOptions: Bool { self == .bothOptions }
+
         /// One entry per key, in the order macOS uses on menus: ⌃⌥⇧⌘ then the key.
         var symbols: [String] {
+            if isBothOptions { return ["Left ⌥", "Right ⌥"] }
             var result: [String] = []
             if modifiers & UInt32(controlKey) != 0 { result.append("⌃") }
             if modifiers & UInt32(optionKey) != 0 { result.append("⌥") }
@@ -49,6 +53,8 @@ final class ShortcutStore {
     private(set) var isUnavailable = false
 
     private var hotKey: GlobalHotKey?
+    private var modifierHotKey: ModifierHotKey?
+    var isRecording = false
     private var action: (() -> Void)?
 
     private init() {
@@ -73,6 +79,8 @@ final class ShortcutStore {
     func deactivate() {
         hotKey?.invalidate()
         hotKey = nil
+        modifierHotKey?.invalidate()
+        modifierHotKey = nil
         action = nil
         isUnavailable = false
     }
@@ -100,9 +108,20 @@ final class ShortcutStore {
         // the previous combination keeps firing alongside the new one.
         hotKey?.invalidate()
         hotKey = nil
+        modifierHotKey?.invalidate()
+        modifierHotKey = nil
+        let fire = { [weak self] in
+            guard self?.isRecording == false else { return }
+            action()
+        }
+        if shortcut.isBothOptions {
+            modifierHotKey = ModifierHotKey(action: fire)
+            isUnavailable = !modifierHotKey!.isRegistered
+            return
+        }
         hotKey = GlobalHotKey(keyCode: shortcut.keyCode,
                               modifiers: shortcut.modifiers,
-                              action: action)
+                              action: fire)
         isUnavailable = hotKey == nil
     }
 }
