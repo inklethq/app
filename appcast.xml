@@ -1,0 +1,33 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>inklet Portal</title>
+        <item>
+            <title>0.2.0-beta.1</title>
+            <pubDate>Mon, 14 Sep 2026 21:38:53 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:channel>beta</sparkle:channel>
+            <sparkle:version>7</sparkle:version>
+            <sparkle:shortVersionString>0.2.0-beta.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.0 Beta 1
+
+First build with automatic updates. Installing this version lets later
+0.2.0 betas and the final release arrive through the in-app updater.
+
+Changes since 0.2.0 Alpha 1
+- Sign in with Apple, next to Google and password sign-in.
+- Automatic updates via Sparkle: "Check for Updates…" in the application
+  menu, and update settings under Settings → General → Updates.
+- Beta builds receive pre-release updates automatically.
+
+Known limitations
+- Requires macOS 26.
+- Launch at login, Show in Dock, and notification settings are not yet
+  functional.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.0-beta.1/inklet-portal-0.2.0-beta.1-mac-universal.dmg" length="6610019" type="application/octet-stream" sparkle:edSignature="H0KkvwJRUydQfwx8XEMR5aeMbB6xME1GllJzwDP3FZhM3CDis3Zzs5NSVB4/c5iQYrHKzAv6A4PWeTLVbm/KDQ=="/>
+        </item>
+    </channel>
+</rss>
