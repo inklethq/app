@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONFIGURATION="${1:-debug}"
-VERSION="${INKLET_VERSION:-0.1.0}"
+VERSION="${INKLET_VERSION:-0.2.0}"
 BUILD_NUMBER="${INKLET_BUILD_NUMBER:-1}"
 OUTPUT_DIR="${INKLET_OUTPUT_DIR:-$ROOT_DIR/build}"
 ARCHS="${INKLET_ARCHS:-}"
