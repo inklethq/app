@@ -1,8 +1,9 @@
-# inklet for macOS
+# inklet Portal for macOS
 
-The native SwiftUI client ships from the public `inklethq/app` releases next
-to the Windows Electron build. It targets macOS 26 and produces one universal
-disk image for Apple silicon and Intel Macs.
+The native SwiftUI client. It targets macOS 26 and produces one universal
+disk image for Apple silicon and Intel Macs. The Electron client that
+previously lived in this repository is archived on the
+`archive/electron-universal` branch and no longer receives feature work.
 
 ## Local build
 
@@ -13,7 +14,7 @@ when `DEVELOPER_DIR` is unset; Command Line Tools alone cannot build the widgets
 ./Scripts/build-app.sh debug
 ```
 
-Set `INKLET_INSTALL=1` to copy the result to `~/Applications/inklet.app`.
+Set `INKLET_INSTALL=1` to copy the result to `~/Applications/inklet Portal.app`.
 The app includes Quick Send (small), Activity (medium), and Virtual Display
 (large). See [Widget setup and current API dependencies](WidgetExtension/README.md).
 

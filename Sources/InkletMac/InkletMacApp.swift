@@ -19,7 +19,7 @@ struct InkletMacApp: App {
     var body: some Scene {
         // `Window`, not `WindowGroup`: this is a single-instance companion window.
         // A group would let ⌘N stack duplicates that all show the same account.
-        Window("inklet", id: Self.mainWindowID) {
+        Window("inklet Portal", id: Self.mainWindowID) {
             AppGate()
                 .environment(session)
                 .environment(model)

@@ -19,14 +19,14 @@ Requires full Xcode 26 with the macOS SDK, not only Command Line Tools.
 From the repository root:
 
 ```sh
-./macos/Scripts/build-app.sh debug
+./Scripts/build-app.sh debug
 # Universal production build (use your Developer ID identity):
 INKLET_ARCHS=arm64,x86_64 INKLET_RELEASE=1 \
   INKLET_SIGN_IDENTITY='Developer ID Application: Your Name (YOURTEAMID)' \
-  ./macos/Scripts/build-app.sh release
+  ./Scripts/build-app.sh release
 ```
 
-The script embeds `InkletWidgets.appex` in `inklet.app/Contents/PlugIns`, includes
+The script embeds `InkletWidgets.appex` in `inklet Portal.app/Contents/PlugIns`, includes
 the fonts, declares `inklet-mac://` links, signs the extension before its host,
 and verifies the complete bundle. It finds `/Applications/Xcode.app` without
 changing the machine's `xcode-select` setting. `DEVELOPER_DIR` can override it.

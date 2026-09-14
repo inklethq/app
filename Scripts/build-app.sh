@@ -41,7 +41,7 @@ else
 fi
 BIN_PATH="$(xcrun swift build "${SWIFT_ARGS[@]}" --show-bin-path)"
 
-APP="$OUTPUT_DIR/inklet.app"
+APP="$OUTPUT_DIR/inklet Portal.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_PATH/InkletMac" "$APP/Contents/MacOS/inklet"
@@ -69,7 +69,7 @@ cp -R "$WIDGET_DERIVED_DATA/Build/Products/$XCODE_CONFIGURATION/InkletWidgets.ap
 
 # Reuse the product's 1024px source icon and let iconutil create the native
 # bundle icon. The temporary iconset never enters the artifact.
-ICON_SOURCE="${INKLET_ICON_SOURCE:-$ROOT_DIR/../resources/icon.png}"
+ICON_SOURCE="${INKLET_ICON_SOURCE:-$ROOT_DIR/Resources/icon.png}"
 if [[ -f "$ICON_SOURCE" ]]; then
   ICONSET="$(mktemp -d)/inklet.iconset"
   mkdir -p "$ICONSET"
@@ -87,8 +87,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>inklet</string>
-  <key>CFBundleDisplayName</key><string>inklet</string>
+  <key>CFBundleName</key><string>inklet Portal</string>
+  <key>CFBundleDisplayName</key><string>inklet Portal</string>
   <key>CFBundleExecutable</key><string>inklet</string>
   <key>CFBundleIdentifier</key><string>com.iminklet.mac</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -105,7 +105,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleURLSchemes</key><array><string>inklet-mac</string></array>
   </dict></array>
   <key>NSAppleEventsUsageDescription</key>
-  <string>inklet reads what you're looking at — a browser's address, a Finder selection, or the photo you have open — so the composer can offer it when you summon it.</string>
+  <string>inklet Portal reads what you're looking at — a browser's address, a Finder selection, or the photo you have open — so the composer can offer it when you summon it.</string>
   <key>NSServices</key>
   <array>
     <dict>
@@ -156,7 +156,7 @@ fi
 codesign --verify --deep --strict --verbose=2 "$APP"
 
 if [[ "$INSTALL_AFTER_BUILD" == "1" ]]; then
-  INSTALLED="$HOME/Applications/inklet.app"
+  INSTALLED="$HOME/Applications/inklet Portal.app"
   mkdir -p "$HOME/Applications"
   rm -rf "$INSTALLED"
   cp -R "$APP" "$INSTALLED"
