@@ -54,23 +54,49 @@ final class Session {
     /// flow, so the app doesn't have to register a URL handler and fight the
     /// Electron client for it.
     func signInWithGoogle() async {
+        await signInWithProvider(.google)
+    }
+
+    /// Sign in with Apple uses the same portal desktop callback as Google. The
+    /// backend's `/auth/oauth/apple?client=desktop` flow already exists for the
+    /// web portal and iOS, so nothing here needs the restricted
+    /// `com.apple.developer.applesignin` entitlement or a provisioning profile.
+    func signInWithApple() async {
+        await signInWithProvider(.apple)
+    }
+
+    enum OAuthProvider: String {
+        case google, apple
+
+        var displayName: String {
+            switch self {
+            case .google: "Google"
+            case .apple: "Apple"
+            }
+        }
+
+        var authorizationURL: URL {
+            URL(string: "https://auth.iminklet.com/auth/oauth/\(rawValue)?client=desktop")!
+        }
+    }
+
+    private func signInWithProvider(_ provider: OAuthProvider) async {
         guard !isWorking else { return }
         isWorking = true
         error = nil
         defer { isWorking = false }
 
         do {
-            let callback = try await Self.runWebAuth(
-                url: URL(string: "https://auth.iminklet.com/auth/oauth/google?client=desktop")!)
+            let callback = try await Self.runWebAuth(url: provider.authorizationURL)
             let items = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
             func value(_ name: String) -> String? { items.first { $0.name == name }?.value }
 
             if let failure = value("error") {
-                error = failure == "oauth_failed" ? "Google sign-in failed" : failure
+                error = failure == "oauth_failed" ? "\(provider.displayName) sign-in failed" : failure
                 return
             }
             guard let access = value("accessToken"), let refresh = value("refreshToken") else {
-                error = "Google sign-in didn't return a session"
+                error = "\(provider.displayName) sign-in didn't return a session"
                 return
             }
 

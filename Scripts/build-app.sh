@@ -11,6 +11,11 @@ OUTPUT_DIR="${INKLET_OUTPUT_DIR:-$ROOT_DIR/build}"
 ARCHS="${INKLET_ARCHS:-}"
 SIGN_IDENTITY="${INKLET_SIGN_IDENTITY:--}"
 INSTALL_AFTER_BUILD="${INKLET_INSTALL:-0}"
+# Sparkle: the feed is committed to the `appcast` branch by the release
+# workflow; the public key pairs with the SPARKLE_PRIVATE_KEY repository
+# secret (private half lives in the release manager's login Keychain).
+SPARKLE_FEED_URL="${INKLET_SPARKLE_FEED_URL:-https://raw.githubusercontent.com/inklethq/app/appcast/appcast.xml}"
+SPARKLE_PUBLIC_KEY="${INKLET_SPARKLE_PUBLIC_KEY:-V8ABE8pxqFcEA8x5OycPwX+42/hPESXcBaReS2HXEPA=}"
 source "$SCRIPT_DIR/widget-configuration.sh"
 inklet_configure_widget_group
 
@@ -45,6 +50,12 @@ APP="$OUTPUT_DIR/inklet Portal.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_PATH/InkletMac" "$APP/Contents/MacOS/inklet"
+
+# SwiftPM drops the Sparkle binary artifact next to the executable; the app
+# links it via @executable_path/../Frameworks (see Package.swift).
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+mkdir -p "$APP/Contents/Frameworks"
+cp -R "$BIN_PATH/Sparkle.framework" "$SPARKLE"
 
 # SwiftPM puts processed resources in a sibling bundle. Flatten them into the
 # app bundle so Bundle.main resolves them after the build directory is gone.
@@ -122,6 +133,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
       </array>
     </dict>
   </array>
+  <key>SUFeedURL</key><string>$SPARKLE_FEED_URL</string>
+  <key>SUPublicEDKey</key><string>$SPARKLE_PUBLIC_KEY</string>
+  <key>SUEnableAutomaticChecks</key><true/>
+  <key>SUScheduledCheckInterval</key><integer>86400</integer>
   <key>NSPrincipalClass</key><string>NSApplication</string>
   <key>NSSupportsAutomaticTermination</key><true/>
 </dict>
@@ -138,7 +153,23 @@ cp "$ROOT_DIR/WidgetExtension/InkletPresentationWidget.entitlements" "$WIDGET_EN
 for entitlement_file in "$ENTITLEMENTS" "$WIDGET_ENTITLEMENTS"; do
   /usr/libexec/PlistBuddy -c "Set :com.apple.security.application-groups:0 $INKLET_APP_GROUP" "$entitlement_file"
 done
+# Sparkle ships pre-signed; re-sign its nested executables with our identity
+# (innermost first) so the host app's signature covers a consistent tree.
+# The XPC services keep their own entitlements. Sparkle's docs recommend
+# exactly this sequence rather than --deep.
+sign_sparkle() {
+  local -a flags=("$@")
+  for xpc in Installer Downloader; do
+    codesign --force "${flags[@]}" --preserve-metadata=entitlements \
+      "$SPARKLE/Versions/B/XPCServices/$xpc.xpc"
+  done
+  codesign --force "${flags[@]}" "$SPARKLE/Versions/B/Autoupdate"
+  codesign --force "${flags[@]}" "$SPARKLE/Versions/B/Updater.app"
+  codesign --force "${flags[@]}" "$SPARKLE"
+}
+
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
+  sign_sparkle --sign -
   codesign --force --sign - --entitlements "$WIDGET_ENTITLEMENTS" "$WIDGET"
   codesign --force --sign - --entitlements "$ENTITLEMENTS" "$APP"
 else
@@ -148,6 +179,7 @@ else
   if [[ -n "${INKLET_APP_PROVISION_PROFILE:-}" ]]; then
     cp "$INKLET_APP_PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
   fi
+  sign_sparkle --sign "$SIGN_IDENTITY" --options runtime --timestamp
   codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp \
     --entitlements "$WIDGET_ENTITLEMENTS" "$WIDGET"
   codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp \

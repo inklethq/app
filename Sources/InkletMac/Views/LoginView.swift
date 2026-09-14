@@ -23,6 +23,7 @@ struct LoginView: View {
                 wordmark
                 form
                 divider
+                appleButton
                 googleButton
                 footer
             }
@@ -92,14 +93,30 @@ struct LoginView: View {
         }
     }
 
+    private var appleButton: some View {
+        providerButton(title: "Continue with Apple", symbol: "apple.logo") {
+            await session.signInWithApple()
+        }
+    }
+
     private var googleButton: some View {
+        providerButton(title: "Continue with Google", symbol: "globe") {
+            await session.signInWithGoogle()
+        }
+    }
+
+    private func providerButton(
+        title: String,
+        symbol: String,
+        action: @escaping @MainActor () async -> Void
+    ) -> some View {
         Button {
-            Task { await session.signInWithGoogle() }
+            Task { await action() }
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: "globe")
+                Image(systemName: symbol)
                     .font(.system(size: 13))
-                Text("Continue with Google")
+                Text(title)
                     .font(.system(size: 14))
             }
             .foregroundStyle(Ink.text)

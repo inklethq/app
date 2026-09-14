@@ -1,6 +1,7 @@
 # inklet Portal for macOS
 
-The native SwiftUI client for inklet. It signs in with an inklet account,
+The native SwiftUI client for inklet. It signs in with an inklet account
+(password, Google, or Apple),
 composes Content from text, links, images, and files, sends it to inklet
 Displays, manages account-owned Virtual Displays, and ships a WidgetKit
 extension that shows those Displays on the desktop.
@@ -90,6 +91,7 @@ Required repository secrets:
 
 | Secret | Purpose |
 | --- | --- |
+| `SPARKLE_PRIVATE_KEY` | EdDSA private key for signing Sparkle updates (see Automatic updates) |
 | `CSC_LINK` | Base64-encoded Developer ID Application `.p12` |
 | `CSC_KEY_PASSWORD` | Password for that `.p12` |
 | `APPLE_API_KEY` | Base64-encoded App Store Connect API `.p8` |
@@ -98,6 +100,33 @@ Required repository secrets:
 
 `.github/workflows/ci.yml` validates the scripts, runs the tests, and packages
 a universal ad-hoc build on every pull request and push to `main`.
+
+## Automatic updates
+
+Installed apps update themselves through [Sparkle](https://sparkle-project.org)
+(SwiftPM dependency, embedded by `Scripts/build-app.sh`). Users get the standard
+Sparkle sheet (Install Update, Remind Me Later, Skip This Version), a
+"Check for Updates…" item in the application menu, and toggles under
+Settings → General → Updates.
+
+- Feed: `https://raw.githubusercontent.com/inklethq/app/appcast/appcast.xml`,
+  maintained on the `appcast` branch by the release workflow. Never edit it by
+  hand; run the workflow instead so signatures stay valid.
+- Channels: a pre-release tag (`v0.2.0-beta.1`) is published to the `beta`
+  channel. Pre-release builds and users who enable "Include beta versions" see
+  it; stable builds otherwise only see stable releases.
+- Signing: updates are signed with an EdDSA key. The public half is in
+  `Scripts/build-app.sh` (`SPARKLE_PUBLIC_KEY`); the private half is the
+  `SPARKLE_PRIVATE_KEY` repository secret and lives in the release manager's
+  login Keychain as "Private key for signing Sparkle updates". Losing the
+  private key means no installed copy can be updated again, so back it up
+  (`generate_keys -x <file>` from the Sparkle `bin/` directory).
+- Versions: Sparkle compares `CFBundleVersion`, which the workflow sets to the
+  GitHub run number, so every release must be built by the workflow.
+
+Ad-hoc local builds have the feed configured but Gatekeeper will not let
+Sparkle replace an unsigned app, so test the full update path with a Developer
+ID build.
 
 ## Backend dependencies
 

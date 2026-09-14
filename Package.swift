@@ -10,6 +10,9 @@ let package = Package(
         .library(name: "InkletPresentationWidget", targets: ["InkletPresentationWidget"]),
         .executable(name: "InkletWidgetPreview", targets: ["InkletWidgetPreview"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.0"),
+    ],
     targets: [
         .target(
             name: "InkletPresentationKit",
@@ -23,9 +26,18 @@ let package = Package(
         ),
         .executableTarget(
             name: "InkletMac",
-            dependencies: ["InkletPresentationKit", "InkletPresentationWidget"],
+            dependencies: [
+                "InkletPresentationKit",
+                "InkletPresentationWidget",
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
             path: "Sources/InkletMac",
-            resources: [.process("Resources")]
+            resources: [.process("Resources")],
+            linkerSettings: [
+                // Sparkle.framework is copied into Contents/Frameworks by
+                // Scripts/build-app.sh; this is where the loader looks for it.
+                .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"]),
+            ]
         ),
         .testTarget(
             name: "InkletPresentationKitTests",
