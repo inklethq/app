@@ -31,6 +31,13 @@ private struct GeneralSettings: View {
     @AppStorage("launchAtLogin") private var launchAtLogin = true
     @AppStorage("showInDock") private var showInDock = false
     @AppStorage("showWeather") private var showWeather = true
+    @ObservedObject private var updater = AppUpdater.shared
+
+    private var lastCheckDescription: String {
+        guard updater.isAvailable else { return "Run a packaged build to check for updates" }
+        guard let date = updater.lastUpdateCheckDate else { return "Never checked" }
+        return "Last checked " + date.formatted(.relative(presentation: .named))
+    }
 
     var body: some View {
         SettingsPage(tab: .general) {
@@ -43,6 +50,32 @@ private struct GeneralSettings: View {
                            subtitle: "With this off, inklet lives in the menu bar only",
                            showsDivider: false) {
                     Toggle("", isOn: $showInDock).labelsHidden()
+                }
+            }
+
+            SettingsGroup("Updates") {
+                SettingRow(title: "Check for updates automatically",
+                           subtitle: updater.isAvailable
+                               ? "Once a day, in the background"
+                               : "Available in the packaged app only") {
+                    Toggle("", isOn: Binding(
+                        get: { updater.isAvailable && updater.automaticallyChecksForUpdates },
+                        set: { updater.automaticallyChecksForUpdates = $0 }))
+                        .labelsHidden()
+                        .disabled(!updater.isAvailable)
+                }
+                SettingRow(title: "Include beta versions",
+                           subtitle: AppUpdater.isPrereleaseBuild
+                               ? "This is a beta build, so betas are always offered"
+                               : "Get pre-release builds before they are final") {
+                    Toggle("", isOn: $updater.includesBetaUpdates).labelsHidden()
+                        .disabled(!updater.isAvailable || AppUpdater.isPrereleaseBuild)
+                }
+                SettingRow(title: "Check now",
+                           subtitle: lastCheckDescription,
+                           showsDivider: false) {
+                    Button("Check for Updates…") { updater.checkForUpdates() }
+                        .disabled(!updater.isAvailable || !updater.canCheckForUpdates)
                 }
             }
 

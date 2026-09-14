@@ -136,6 +136,39 @@ jobs:
           xcrun stapler validate "$DMG"
           cp "$DMG" dist/inklet-portal-macOS.dmg
 
+      - name: Generate Sparkle appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          test -n "$SPARKLE_PRIVATE_KEY"
+          SPARKLE_BIN="$(find .build/artifacts -type d -path '*sparkle/Sparkle/bin' | head -n1)"
+          test -x "$SPARKLE_BIN/generate_appcast"
+
+          WORK="$RUNNER_TEMP/appcast"
+          mkdir -p "$WORK"
+          # Start from the published feed so earlier items survive; a first
+          # release has no branch yet and starts an empty feed.
+          if git fetch origin appcast 2>/dev/null; then
+            git show origin/appcast:appcast.xml > "$WORK/appcast.xml"
+          fi
+          DMG_NAME="inklet-portal-$RELEASE_VERSION-mac-universal.dmg"
+          cp "dist/$DMG_NAME" "$WORK/"
+          # The annotated tag message doubles as the release notes.
+          git fetch --tags --force >/dev/null 2>&1 || true
+          git tag -l --format='%(contents)' "$RELEASE_TAG" > "$WORK/${DMG_NAME%.dmg}.md"
+
+          CHANNEL=()
+          if [[ "$RELEASE_VERSION" == *-* ]]; then CHANNEL=(--channel beta); fi
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | "$SPARKLE_BIN/generate_appcast" \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/inklethq/app/releases/download/$RELEASE_TAG/" \
+            --link "https://github.com/inklethq/app/releases" \
+            --embed-release-notes \
+            "${CHANNEL[@]}" \
+            "$WORK"
+          cp "$WORK/appcast.xml" dist/appcast.xml
+          cat dist/appcast.xml
+
       - name: Upload native macOS release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -143,7 +176,23 @@ jobs:
           gh release upload "$RELEASE_TAG" \
             "dist/inklet-portal-$RELEASE_VERSION-mac-universal.dmg" \
             dist/inklet-portal-macOS.dmg \
+            dist/appcast.xml \
             --clobber
+
+      - name: Publish appcast to the appcast branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin appcast 2>/dev/null; then
+            git worktree add -B appcast "$RUNNER_TEMP/appcast-branch" origin/appcast
+          else
+            git worktree add --orphan -b appcast "$RUNNER_TEMP/appcast-branch"
+          fi
+          cp dist/appcast.xml "$RUNNER_TEMP/appcast-branch/appcast.xml"
+          cd "$RUNNER_TEMP/appcast-branch"
+          git add appcast.xml
+          git commit -m "appcast: $RELEASE_TAG" || echo "appcast unchanged"
+          git push origin appcast
 
       - name: Remove signing keychain
         if: always()

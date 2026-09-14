@@ -33,6 +33,7 @@ struct InkletMacApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .appInfo) { AboutSettingsCommand() }
+            CommandGroup(after: .appInfo) { CheckForUpdatesCommand() }
             // A single-instance Window contributes no "New Window" item, so
             // closing it would otherwise leave no way back into the app. This
             // reopens the one window (or focuses it if it's already up).
