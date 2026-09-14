@@ -1,8 +1,9 @@
-node_modules/
+.DS_Store
+.build/
+.swiftpm/
+build/
 dist/
-dist-electron/
-release/
+WidgetDerivedData/
+*.xcuserdatad/
+xcuserdata/
 .superpowers/
-macos/.build/
-macos/build/
-macos/dist/

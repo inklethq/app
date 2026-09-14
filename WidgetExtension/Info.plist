@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>InkletAppGroupIdentifier</key>
+    <string>$(INKLET_APP_GROUP)</string>
+    <key>InkletWidgetStorageMode</key>
+    <string>$(INKLET_WIDGET_STORAGE_MODE)</string>
+    <key>CFBundleDisplayName</key><string>inklet</string>
+    <key>NSExtension</key>
+    <dict>
+        <key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string>
+    </dict>
+</dict>
+</plist>

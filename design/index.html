@@ -1,0 +1,1556 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>inklet for Mac — 产品与界面设计稿</title>
+<style>
+@font-face{font-family:'Newsreader';src:url('fonts/Newsreader-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'InterLocal';src:url('fonts/Inter-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'InterLocal';src:url('fonts/Inter-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+
+:root{
+  --paper:#F5F3ED; --card:#EFEDE7; --input:#ECEAE4; --rule:#E0DDD6; --rule-soft:#EAE7E0;
+  --ink:#1A1A1A; --ink2:#5A5751; --ink3:#8E8A82; --ink4:#B3AFA6;
+  --clay:#C4B99A; --ok:#3E8E5A; --warn:#B0862F; --err:#8B4444;
+  --serif:'Newsreader',Georgia,serif;
+  --sans:'InterLocal',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --mono:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;
+  --nav-w:236px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:24px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:400}
+p{margin:0 0 12px}
+ul,ol{margin:0 0 12px;padding-left:18px}
+li{margin:3px 0}
+a{color:inherit}
+code{font-family:var(--mono);font-size:.86em;background:var(--card);border:1px solid var(--rule);border-radius:4px;padding:1px 5px;white-space:nowrap}
+::selection{background:#1a1a1a;color:var(--paper)}
+
+/* ---------- 文档骨架 ---------- */
+.nav{position:fixed;inset:0 auto 0 0;width:var(--nav-w);padding:30px 22px 24px;border-right:1px solid var(--rule);background:var(--paper);overflow-y:auto;z-index:50}
+.nav-brand{display:flex;align-items:baseline;gap:6px;margin-bottom:4px}
+.nav-brand b{font-family:var(--serif);font-size:19px;font-weight:400;letter-spacing:.01em}
+.nav-brand span{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+.nav-sub{font-size:11px;color:var(--ink3);margin-bottom:26px;line-height:1.5}
+.nav a{display:flex;gap:10px;align-items:baseline;padding:6px 8px;margin:0 -8px;border-radius:7px;text-decoration:none;color:var(--ink2);font-size:12.5px;transition:background .12s,color .12s}
+.nav a em{font-family:var(--mono);font-style:normal;font-size:10px;color:var(--ink4);width:16px;flex:none}
+.nav a:hover{background:var(--card);color:var(--ink)}
+.nav a.on{background:var(--card);color:var(--ink);font-weight:500}
+.nav a.on em{color:var(--ink2)}
+.nav-foot{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule);font-size:10.5px;color:var(--ink4);line-height:1.7}
+
+.main{margin-left:var(--nav-w);padding:0 0 120px}
+.wrap{max-width:1000px;padding:0 56px}
+section.ch{padding:64px 0 12px;scroll-margin-top:0}
+.ch-head{margin-bottom:26px}
+.ch-num{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--ink4);display:block;margin-bottom:8px}
+.ch-title{font-family:var(--serif);font-size:30px;line-height:1.15;letter-spacing:.005em}
+.ch-lede{margin-top:10px;font-size:14.5px;color:var(--ink2);max-width:660px}
+.rule{height:1px;background:var(--rule);border:0;margin:0}
+
+h3.sub{font-family:var(--serif);font-size:19px;margin:36px 0 12px}
+h4.sub{font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin:26px 0 10px}
+.body{max-width:680px;color:var(--ink2)}
+.body strong{color:var(--ink);font-weight:500}
+.note{border-left:2px solid var(--clay);padding:2px 0 2px 14px;margin:16px 0;font-size:13px;color:var(--ink2);max-width:660px}
+.note b{color:var(--ink);font-weight:500}
+
+/* ---------- hero ---------- */
+.hero{padding:56px 0 18px}
+.hero-kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;color:var(--ink4);margin-bottom:14px}
+.hero h1{font-family:var(--serif);font-size:46px;line-height:1.06;letter-spacing:-.005em;max-width:14ch}
+.hero h1 i{font-style:italic;color:var(--ink2)}
+.hero p{margin-top:16px;max-width:560px;color:var(--ink2);font-size:15px}
+.hero-meta{display:flex;gap:26px;margin-top:26px;flex-wrap:wrap}
+.hero-meta div{font-size:12px;color:var(--ink3)}
+.hero-meta b{display:block;color:var(--ink);font-weight:500;font-size:13px;margin-top:2px}
+
+/* ---------- 桌面场景 ---------- */
+.stage{position:relative;margin:34px 0 0;border:1px solid var(--rule);border-radius:14px;background:linear-gradient(165deg,#2c2a26 0%,#3b3833 45%,#26241f 100%);overflow:hidden;height:560px;box-shadow:0 24px 60px -30px rgba(26,26,26,.5)}
+.stage-bar{position:absolute;top:0;left:0;right:0;height:26px;background:rgba(245,243,237,.14);backdrop-filter:blur(20px);display:flex;align-items:center;padding:0 12px;gap:16px;font-size:11px;color:#f2efe8;z-index:6}
+.stage-bar .apple{font-size:13px;opacity:.9}
+.stage-bar .grow{margin-left:auto;display:flex;align-items:center;gap:14px;opacity:.9}
+.mb-item{display:flex;align-items:center;gap:5px;padding:2px 6px;border-radius:5px;cursor:pointer}
+.mb-item.active{background:rgba(245,243,237,.22)}
+.stage-win{position:absolute;transition:transform .5s cubic-bezier(.22,1,.36,1),opacity .4s,filter .4s}
+.stage-main{top:56px;left:46px;width:660px;transform-origin:top left}
+.stage-hud{top:250px;left:392px;width:430px;z-index:5}
+.stage-menu{top:32px;right:24px;width:268px;z-index:7}
+.stage[data-focus="main"] .stage-hud{opacity:0;transform:translateY(10px) scale(.98);pointer-events:none}
+.stage[data-focus="main"] .stage-menu{opacity:0;transform:translateY(-8px);pointer-events:none}
+.stage[data-focus="hud"] .stage-main{filter:blur(1.5px) saturate(.9);opacity:.62;transform:scale(.99)}
+.stage[data-focus="hud"] .stage-menu{opacity:0;transform:translateY(-8px);pointer-events:none}
+.stage[data-focus="menu"] .stage-main{filter:blur(1.5px) saturate(.9);opacity:.62}
+.stage[data-focus="menu"] .stage-hud{opacity:0;transform:translateY(10px) scale(.98);pointer-events:none}
+.stage-cap{position:absolute;left:0;right:0;bottom:0;padding:12px 16px;background:linear-gradient(0deg,rgba(20,19,17,.86),rgba(20,19,17,0));display:flex;gap:8px;align-items:center;z-index:8}
+.stage-cap span{font-size:11.5px;color:rgba(245,243,237,.7);margin-right:auto}
+.seg{display:flex;border:1px solid rgba(245,243,237,.28);border-radius:8px;overflow:hidden}
+.seg button{appearance:none;border:0;background:transparent;color:rgba(245,243,237,.72);font-family:var(--sans);font-size:11.5px;padding:5px 11px;cursor:pointer;transition:background .12s,color .12s}
+.seg button+button{border-left:1px solid rgba(245,243,237,.22)}
+.seg button.on{background:rgba(245,243,237,.92);color:#1a1a1a;font-weight:500}
+
+/* ---------- macOS 窗口原型 ---------- */
+.win{background:var(--paper);border:1px solid #d6d2ca;border-radius:11px;overflow:hidden;box-shadow:0 22px 50px -24px rgba(26,26,26,.45),0 2px 6px rgba(26,26,26,.08)}
+.win.flat{box-shadow:0 8px 24px -14px rgba(26,26,26,.35)}
+.win-bar{height:38px;display:flex;align-items:center;padding:0 13px;gap:9px;background:var(--paper);border-bottom:1px solid var(--rule-soft)}
+.traffic{display:flex;gap:7px}
+.traffic i{width:11px;height:11px;border-radius:50%;display:block}
+.traffic i:nth-child(1){background:#ec6a5e}.traffic i:nth-child(2){background:#f4bf4f}.traffic i:nth-child(3){background:#61c454}
+.win-title{font-size:12.5px;color:var(--ink2);font-weight:500}
+.win-bar .right{margin-left:auto;display:flex;gap:10px;align-items:center;color:var(--ink3)}
+.win-body{display:flex;min-height:0}
+.side{width:172px;flex:none;border-right:1px solid var(--rule-soft);background:#F1EFE9;padding:10px 10px 12px;display:flex;flex-direction:column}
+.side-label{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--ink4);padding:6px 8px 4px}
+.side-item{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;font-size:12.5px;color:var(--ink2);cursor:pointer;transition:background .12s}
+.side-item:hover{background:rgba(224,221,214,.55)}
+.side-item.on{background:#E3DFD6;color:var(--ink);font-weight:500}
+.side-item svg{flex:none;opacity:.85}
+.side-foot{margin-top:auto;border-top:1px solid var(--rule);padding-top:9px;display:flex;align-items:center;gap:8px}
+.avatar{width:22px;height:22px;border-radius:50%;border:1px solid var(--rule);background:var(--card);display:grid;place-items:center;font-family:var(--serif);font-size:12px;color:var(--ink2)}
+.side-foot .who{font-size:11.5px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{font-size:9px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--rule);color:var(--ink3);border-radius:4px;padding:1px 5px;background:var(--paper)}
+.badge.solid{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.badge.ok{color:var(--ok);border-color:#c5ddcd}
+.pane{flex:1;min-width:0;padding:20px 22px 22px;overflow:hidden}
+
+/* 通用小组件 */
+.kicker{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink4);margin-bottom:8px}
+.h-title{font-family:var(--serif);font-size:22px;line-height:1.2}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ok);display:inline-block;flex:none}
+.dot.off{background:var(--ink4)}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:12px}
+/* 按钮 = SwiftUI .borderedProminent / .bordered，tint 墨黑 */
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:var(--paper);border:1px solid var(--ink);border-radius:6px;font-size:11.5px;font-weight:500;padding:5px 11px;font-family:var(--sans);cursor:pointer;box-shadow:0 1px 2px rgba(26,26,26,.18)}
+.btn.ghost{background:linear-gradient(#FFFDF9,#F6F3EC);color:var(--ink);border-color:#C9C5BC;box-shadow:0 1px 1px rgba(26,26,26,.05)}
+.btn.sm{font-size:10.5px;padding:3px 8px}
+.rowline{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--rule-soft)}
+.rowline:last-child{border-bottom:0}
+.rowline .k{font-size:12px;color:var(--ink3)}
+.rowline .v{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--ink)}
+
+/* 热力图 */
+.heat{display:flex;gap:2.5px}
+.heat i{display:flex;flex-direction:column;gap:2.5px}
+.heat b{width:9px;height:9px;border-radius:2px;background:#E6E3DB;display:block}
+.heat b.l1{background:#D6CFBC}.heat b.l2{background:#B9AE92}.heat b.l3{background:#8E846B}.heat b.l4{background:#4A443A}
+
+/* e-ink 屏 */
+.eink{position:relative;width:100%;aspect-ratio:2303/1664}
+.eink .glass{position:absolute;top:6.6%;left:4.8%;right:4.8%;bottom:18.6%;background:#f0f1f3;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center}
+.eink .frame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.eink .meta{position:absolute;top:5%;left:4%;right:4%;display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:#9a9a9a}
+.eink .inner{padding:0 8%}
+.eink .sub{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#8a8a8a;display:block;margin-bottom:8px}
+.eink .ttl{font-family:var(--serif);font-size:22px;line-height:1.1;color:#222}
+.eink .hr{width:34px;height:1px;background:#b5b5b5;margin:9px auto}
+.eink .det{font-family:var(--mono);font-size:8.5px;color:#4a4a4a;line-height:1.5}
+
+/* ---------- HUD ---------- */
+.hud{background:var(--paper);border:1px solid #d9d5cd;border-radius:14px;box-shadow:0 24px 44px -20px rgba(26,26,26,.45),0 1px 3px rgba(26,26,26,.1);padding:2px 0 0;overflow:hidden}
+.hud-bar{height:32px;display:flex;align-items:center;padding:0 13px;gap:8px}
+.hud-brand{display:flex;align-items:baseline;gap:5px;margin:0 auto;transform:translateX(-6px)}
+.hud-brand b{font-family:var(--serif);font-size:14px;font-weight:400}
+.hud-brand span{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink4);font-weight:500}
+.hud-bar .r{display:flex;align-items:center;gap:9px;color:var(--ink3);font-size:11px}
+.hud-box{margin:0 12px 10px;background:var(--input);border:1px solid var(--rule);border-radius:11px;position:relative}
+.hud-text{padding:11px 13px 4px;font-size:13px;color:var(--ink);min-height:56px;line-height:1.5}
+.hud-text.ph{color:var(--ink4)}
+.ghost{color:var(--ink4);opacity:.75}
+.kbd{display:inline-flex;align-items:center;justify-content:center;background:var(--rule);border-radius:4px;padding:1px 5px;font-size:9.5px;color:var(--ink3);margin-left:5px;font-family:var(--sans);vertical-align:middle}
+.hud-tools{display:flex;align-items:center;justify-content:space-between;padding:5px 9px 8px;gap:6px}
+.tool{width:27px;height:27px;border-radius:6px;border:1px solid #C9C5BC;display:grid;place-items:center;color:var(--ink2);background:linear-gradient(#FFFDF9,#F6F3EC);box-shadow:0 1px 1px rgba(26,26,26,.05);cursor:pointer}
+.tool:hover{background:#F1EEE6}
+.tools-l{display:flex;gap:5px}
+.tools-r{display:flex;gap:6px;align-items:center}
+/* 分段控件 = Picker(.segmented)，选中块取 tint 色 */
+.pillgroup{display:inline-flex;align-items:center;background:#E5E2DA;border:0;border-radius:6px;padding:1.5px;gap:1.5px;height:27px}
+.pillgroup button{appearance:none;border:0;background:transparent;font-family:var(--sans);font-size:10.5px;font-weight:400;color:var(--ink2);padding:0 9px;height:100%;border-radius:5px;display:flex;align-items:center;gap:4px;cursor:pointer}
+.pillgroup button.on{background:var(--ink);color:var(--paper);font-weight:500}
+.send{width:27px;height:27px;border-radius:6px;background:var(--ink);color:var(--paper);display:grid;place-items:center;border:0;cursor:pointer;box-shadow:0 1px 2px rgba(26,26,26,.2)}
+.send.ok{background:var(--ok)}.send.err{background:var(--err)}.send.dim{opacity:.25}
+.hud-attach{display:flex;gap:8px;padding:0 12px 11px}
+.att{width:62px;height:62px;border-radius:8px;border:1px solid var(--rule);background:#FDFCF9;padding:5px;position:relative;flex:none}
+.att .thumb{width:100%;height:100%;background:linear-gradient(135deg,#DAD5C7,#B8B0A0);border-radius:4px}
+.att.link{background:#FDFCF9;border-left:3px solid var(--clay);display:flex;flex-direction:column;justify-content:center;padding:6px;width:118px}
+.att.link b{font-size:9.5px;font-weight:500;line-height:1.25;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.att.link span{font-size:8px;color:var(--ink4);margin-top:3px}
+.att.file{background:#FDFCF9;border-left:3px solid #B8B0A0;display:flex;flex-direction:column;justify-content:center;padding:6px;width:118px}
+.att .x{position:absolute;top:-5px;right:-5px;width:15px;height:15px;border-radius:50%;background:var(--ink);color:var(--paper);font-size:9px;display:grid;place-items:center}
+.hud-lock{position:absolute;inset:0;background:rgba(245,243,237,.86);border-radius:11px;display:grid;place-items:center;font-size:12px;color:var(--ink3)}
+.hud-lock u{color:var(--ink2)}
+
+/* 菜单栏下拉 */
+.mbmenu{background:rgba(246,244,239,.96);backdrop-filter:blur(24px);border:1px solid rgba(26,26,26,.12);border-radius:11px;box-shadow:0 18px 40px -18px rgba(0,0,0,.5);padding:6px;font-size:12.5px}
+.mbmenu .sec{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink4);padding:5px 9px 3px}
+.mbmenu .it{display:flex;align-items:center;gap:8px;padding:5px 9px;border-radius:6px;color:var(--ink);cursor:pointer}
+.mbmenu .it:hover{background:var(--ink);color:var(--paper)}
+.mbmenu .it:hover .sh,.mbmenu .it:hover small{color:rgba(245,243,237,.75)}
+.mbmenu .it .sh{margin-left:auto;font-size:11px;color:var(--ink4)}
+.mbmenu .it small{font-size:10.5px;color:var(--ink3)}
+.mbmenu .sep{height:1px;background:var(--rule);margin:5px 8px}
+
+/* 图注 */
+.figs{margin:22px 0 6px}
+.fig{margin:0 0 34px}
+.fig-cap{display:flex;gap:10px;align-items:baseline;margin-top:10px;font-size:12px;color:var(--ink3);max-width:760px}
+.fig-cap b{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink4);flex:none}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:26px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+@media (max-width:1180px){.grid2,.grid3{grid-template-columns:1fr}}
+
+/* 表格 */
+table{border-collapse:collapse;width:100%;max-width:920px;font-size:12.5px;margin:6px 0 18px}
+th{text-align:left;font-weight:500;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink4);padding:0 12px 7px 0;border-bottom:1px solid var(--rule)}
+td{padding:9px 12px 9px 0;border-bottom:1px solid var(--rule-soft);vertical-align:top;color:var(--ink2)}
+td:first-child{color:var(--ink);white-space:nowrap}
+td code{white-space:nowrap}
+.tag{display:inline-block;font-size:9.5px;letter-spacing:.06em;padding:1px 6px;border-radius:4px;border:1px solid var(--rule);color:var(--ink3);background:var(--paper)}
+.tag.p0{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.tag.p1{background:var(--clay);color:#332d1d;border-color:#b9ad8c}
+.tag.p2{background:transparent}
+
+/* 流程图 */
+.flow{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin:14px 0 8px}
+.node{border:1px solid var(--rule);background:var(--card);border-radius:9px;padding:9px 12px;font-size:12px;min-width:104px}
+.node b{display:block;font-weight:500;color:var(--ink);font-size:12.5px}
+.node span{color:var(--ink3);font-size:11px}
+.node.k{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.node.k b{color:var(--paper)}.node.k span{color:rgba(245,243,237,.6)}
+.arrow{align-self:center;color:var(--ink4);font-size:14px}
+.branch{border-left:1px solid var(--rule);padding-left:16px;margin:10px 0 10px 12px}
+
+/* 设置窗 tab */
+.settabs{display:flex;gap:2px;padding:6px 10px;border-bottom:1px solid var(--rule-soft);background:var(--paper)}
+.settab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 12px;border-radius:7px;font-size:10.5px;color:var(--ink3);cursor:pointer}
+.settab.on{background:var(--card);color:var(--ink)}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--rule-soft)}
+.setrow:last-child{border-bottom:0}
+.setrow .lbl{font-size:12.5px;color:var(--ink)}
+.setrow .hint{font-size:11px;color:var(--ink3);margin-top:1px;max-width:330px}
+/* 开关 = SwiftUI Toggle（macOS switch 尺寸 26×15） */
+.toggle{width:26px;height:15px;border-radius:8px;background:#CFCBC2;position:relative;flex:none}
+.toggle.on{background:var(--ink)}
+.toggle i{position:absolute;top:1.5px;left:1.5px;width:12px;height:12px;border-radius:50%;background:#fff;display:block;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.toggle.on i{left:12.5px}
+.keycap{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);background:var(--input);border-radius:5px;padding:2px 8px;color:var(--ink2)}
+
+/* 暗色样本 */
+.darkpad{background:#1A1A1A;border-radius:12px;padding:16px;border:1px solid #393631}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;max-width:920px}
+.sw{border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--paper)}
+.sw i{display:block;height:42px}
+.sw span{display:block;padding:6px 8px;font-size:10px;color:var(--ink3);font-family:var(--mono)}
+.sw b{display:block;padding:0 8px 7px;font-size:11px;color:var(--ink);font-weight:500}
+
+.q{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--rule-soft);max-width:820px}
+.q em{font-family:var(--mono);font-style:normal;font-size:10px;color:var(--ink4);flex:none;width:22px;padding-top:3px}
+.q b{font-weight:500;color:var(--ink);display:block;margin-bottom:3px}
+.q p{margin:0;font-size:12.5px;color:var(--ink2)}
+.q .ask{margin-top:5px;font-size:12.5px;color:var(--err)}
+
+/* 字标 —— 永远横排，永不换行 */
+.wordmark{display:inline-flex;align-items:baseline;gap:6px;white-space:nowrap}
+.wordmark b{font-family:var(--serif);font-weight:400;font-size:22px;letter-spacing:.01em;color:var(--ink)}
+.wordmark span{font-size:9.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);white-space:nowrap}
+.wm-demo{display:flex;gap:26px;flex-wrap:wrap;margin:14px 0 4px}
+.wm-case{border:1px solid var(--rule);border-radius:10px;padding:16px 20px;background:var(--card);min-width:190px}
+.wm-case.bad{border-color:#e0cccc;background:#F7F0EE}
+.wm-verdict{font-size:11px;margin-top:10px;color:var(--ok)}
+.wm-case.bad .wm-verdict{color:var(--err)}
+
+/* AppKit 原生控件样本 */
+.ctl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:20px;max-width:920px;margin:16px 0 4px}
+.ctl{border:1px solid var(--rule);border-radius:10px;padding:13px 14px;background:var(--paper)}
+.ctl>.n{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--ink4);margin-bottom:10px;text-transform:uppercase}
+.ctl>.d{font-size:10.5px;color:var(--ink3);margin-top:10px;line-height:1.5}
+.ctl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ak-btn{font-family:var(--sans);font-size:12px;padding:4px 12px;border-radius:6px;background:linear-gradient(#FFFDF9,#F6F3EC);border:1px solid #C9C5BC;box-shadow:0 1px 1px rgba(26,26,26,.05);color:var(--ink)}
+.ak-btn.prom{background:var(--ink);border-color:var(--ink);color:var(--paper);box-shadow:0 1px 2px rgba(26,26,26,.2)}
+.ak-btn.plain{background:transparent;border-color:transparent;box-shadow:none;color:var(--ink2)}
+.ak-btn.dis{opacity:.38}
+.ak-switch{width:26px;height:15px;border-radius:8px;background:#CFCBC2;position:relative;flex:none}
+.ak-switch.on{background:var(--ink)}
+.ak-switch i{position:absolute;top:1.5px;left:1.5px;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.ak-switch.on i{left:12.5px}
+.ak-seg{display:inline-flex;background:#E5E2DA;border-radius:6px;padding:1.5px;gap:1.5px}
+.ak-seg span{font-size:11px;padding:3px 10px;border-radius:5px;color:var(--ink2)}
+.ak-seg span.on{background:var(--ink);color:var(--paper);font-weight:500}
+.ak-field{display:flex;align-items:center;font-size:12px;padding:4px 8px;border-radius:5px;background:#FDFCFA;border:1px solid #C9C5BC;color:var(--ink3);min-width:130px}
+.ak-field.paper{background:var(--input);border-color:var(--rule)}
+.ak-field.focus{box-shadow:0 0 0 3px rgba(26,26,26,.16);border-color:#8c877e;color:var(--ink)}
+.ak-pop{display:inline-flex;align-items:center;gap:8px;font-size:12px;padding:4px 6px 4px 10px;border-radius:6px;background:linear-gradient(#FFFDF9,#F6F3EC);border:1px solid #C9C5BC;color:var(--ink)}
+.ak-pop b{margin-left:auto;background:var(--ink);color:var(--paper);border-radius:4px;padding:0 3px;font-size:9px;line-height:15px;font-weight:400}
+.ak-check{width:14px;height:14px;border-radius:3.5px;border:1px solid #C9C5BC;background:#FDFCFA;display:inline-grid;place-items:center;font-size:9px;color:transparent;flex:none}
+.ak-check.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.ak-prog{height:5px;border-radius:3px;background:#DEDAD1;overflow:hidden;width:100%}
+.ak-prog i{display:block;height:100%;width:62%;background:var(--ink)}
+.ak-search{display:flex;align-items:center;gap:6px;font-size:12px;padding:4px 9px;border-radius:6px;background:#FDFCFA;border:1px solid #C9C5BC;color:var(--ink4);min-width:150px}
+.ak-list{border:1px solid var(--rule);border-radius:7px;overflow:hidden;background:#FDFCFA}
+.ak-list div{font-size:12px;padding:5px 9px;color:var(--ink2)}
+.ak-list div.on{background:var(--ink);color:var(--paper)}
+.tier{display:inline-block;width:17px;height:17px;border-radius:5px;font-size:10px;line-height:17px;text-align:center;font-weight:500;flex:none}
+.tier.a{background:var(--ink);color:var(--paper)}
+.tier.b{background:var(--clay);color:#332d1d}
+.tier.c{background:transparent;border:1px solid var(--rule);color:var(--ink3)}
+
+@media (max-width:900px){
+  .nav{position:static;width:auto;height:auto;border-right:0;border-bottom:1px solid var(--rule)}
+  .main{margin-left:0}
+  .wrap{padding:0 22px}
+  .stage{height:auto;min-height:420px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand"><b>inklet</b><span>for Mac</span></div>
+  <div class="nav-sub">产品与界面设计稿 · v0.1<br>2026-08-09</div>
+  <a href="#c0"><em>00</em>定位与分工</a>
+  <a href="#c1"><em>01</em>三个界面层</a>
+  <a href="#c2"><em>02</em>系统集成</a>
+  <a href="#c3"><em>03</em>HUD 速推面板</a>
+  <a href="#c4"><em>04</em>主窗口</a>
+  <a href="#c5"><em>05</em>设置与登录</a>
+  <a href="#c6"><em>06</em>流程与状态</a>
+  <a href="#c7"><em>07</em>设计系统</a>
+  <a href="#c8"><em>08</em>控件策略</a>
+  <a href="#c9"><em>09</em>接口依赖</a>
+  <a href="#c10"><em>10</em>分期与待定</a>
+  <div class="nav-foot">
+    技术栈 SwiftUI + AppKit<br>
+    目标 macOS 14 Sonoma+<br>
+    分发 Developer ID（非 MAS）
+  </div>
+</nav>
+
+<main class="main">
+<div class="wrap">
+
+  <!-- ============ HERO ============ -->
+  <header class="hero">
+    <div class="hero-kicker">INKLET FOR MAC · 设计稿</div>
+    <h1>把手边的任何东西，<i>一键送上墨水屏</i></h1>
+    <p>Mac 端不是 iOS App 的移植，也不是 Web Portal 的壳。它的独占价值只有一件事：<strong>你正在电脑上看到的东西，最快能到达墨水屏</strong>。围绕这一点，界面被拆成三层——常驻的菜单栏、随叫随到的 HUD、需要时才打开的主窗口。</p>
+    <div class="hero-meta">
+      <div>形态<b>菜单栏 + HUD + 主窗口</b></div>
+      <div>技术<b>SwiftUI，无第三方依赖</b></div>
+      <div>复用<b>iOS 的服务层与主题</b></div>
+      <div>首版不含<b>本地笔记同步（Sources）</b></div>
+    </div>
+  </header>
+
+  <!-- 桌面场景 -->
+  <div class="stage" id="stage" data-focus="hud">
+    <div class="stage-bar">
+      <span class="apple">&#63743;</span>
+      <span style="font-weight:500">Safari</span><span style="opacity:.7">File</span><span style="opacity:.7">Edit</span><span style="opacity:.7">View</span>
+      <span class="grow">
+        <span class="mb-item" id="mbTrigger" style="font-family:var(--serif);font-size:13px">&#10033;</span>
+        <span>100%</span><span>Sat 9 Aug 15:44</span>
+      </span>
+    </div>
+
+    <!-- 主窗口（缩略） -->
+    <div class="stage-win stage-main">
+      <div class="win">
+        <div class="win-bar">
+          <div class="traffic"><i></i><i></i><i></i></div>
+          <div class="win-title" style="margin-left:6px">Home</div>
+          <div class="right"><span style="font-size:11px">&#8635;</span><span style="font-size:14px">+</span></div>
+        </div>
+        <div class="win-body" style="height:300px">
+          <aside class="side">
+            <div class="side-label">WORKSPACE</div>
+            <div class="side-item on">Home</div>
+            <div class="side-item">Displays</div>
+            <div class="side-item">Knowledge</div>
+            <div class="side-foot"><div class="avatar">k</div><div class="who">kevin</div><div class="badge">free</div></div>
+          </aside>
+          <div class="pane">
+            <div class="kicker">SATURDAY, AUG 9</div>
+            <div class="h-title" style="margin-bottom:14px">Hi, Kevin!</div>
+            <div class="card" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <span style="font-size:12px;color:var(--ink3)">Push something to your displays</span>
+              <span class="btn sm" style="margin-left:auto">Open ⌘⇧I</span>
+            </div>
+            <div class="kicker">BUILDING YOUR SECOND BRAIN</div>
+            <div class="heat" id="heroHeat"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD -->
+    <div class="stage-win stage-hud">
+      <div class="hud">
+        <div class="hud-bar">
+          <div class="hud-brand"><b>inklet</b><span>Portal</span></div>
+          <div class="r"><span>kevin</span><span>&#9881;</span></div>
+        </div>
+        <div class="hud-box">
+          <div class="hud-text ph"><span class="ghost">Attention Is All You Need — arxiv.org</span><span class="kbd">Tab</span></div>
+          <div class="hud-tools">
+            <div class="tools-l">
+              <button class="tool">&#8593;</button><button class="tool">&#9112;</button><button class="tool">&#128279;</button>
+            </div>
+            <div class="tools-r">
+              <div class="pillgroup"><button class="on">Auto</button><button>Manual &#9662;</button></div>
+              <button class="send">&#8593;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 菜单栏下拉 -->
+    <div class="stage-win stage-menu">
+      <div class="mbmenu">
+        <div class="sec">YOUR DISPLAYS</div>
+        <div class="it"><span class="dot"></span>Study<small style="margin-left:auto">92% · 2m ago</small></div>
+        <div class="it"><span class="dot off"></span>Living Room<small style="margin-left:auto">Offline · 3h</small></div>
+        <div class="sep"></div>
+        <div class="it">Send to inklet…<span class="sh">⌘⇧I</span></div>
+        <div class="it">Open inklet<span class="sh">⌘0</span></div>
+        <div class="it">Show next on Study<span class="sh"></span></div>
+        <div class="sep"></div>
+        <div class="it">Settings…<span class="sh">⌘,</span></div>
+        <div class="it">Quit inklet<span class="sh">⌘Q</span></div>
+      </div>
+    </div>
+
+    <div class="stage-cap">
+      <span>三个界面层可以独立存在，也可以互相调起。点按钮切换焦点。</span>
+      <div class="seg" id="stageSeg">
+        <button data-f="hud" class="on">HUD</button>
+        <button data-f="main">主窗口</button>
+        <button data-f="menu">菜单栏</button>
+      </div>
+    </div>
+  </div>
+  <div class="fig-cap"><b>图 00</b><span>桌面全景：⌘⇧I 唤起 HUD 时主窗口无需存在；主窗口只在管理设备、翻历史、看知识库时打开。</span></div>
+
+  <!-- ============ 00 定位 ============ -->
+  <section class="ch" id="c0">
+    <div class="ch-head">
+      <span class="ch-num">00</span>
+      <h2 class="ch-title">定位与端上分工</h2>
+      <p class="ch-lede">三个已有的端各自解决了一部分问题。Mac 端要补的，是"在电脑前工作时，内容进入墨水屏的路径太长"。</p>
+    </div>
+
+    <table>
+      <thead><tr><th style="width:120px">端</th><th style="width:190px">核心场景</th><th>能力边界</th></tr></thead>
+      <tbody>
+        <tr><td>iOS App</td><td>随身捕捉、设备配对</td><td>分享菜单、快捷指令、小组件；设备管理与热力图完整</td></tr>
+        <tr><td>Web Portal</td><td>账号、订阅、API token</td><td>唯一的注册入口与计费入口；桌面端一律外链到这里</td></tr>
+        <tr><td>Electron（现状）</td><td>快捷键速推</td><td>已验证 HUD 形态与 Services 菜单，但设备列表是写死的 mock，无设备管理</td></tr>
+        <tr><td><strong>Mac 原生</strong></td><td><strong>工作流中的推送 + 桌面级设备管理</strong></td><td>Electron 的全部 + 真实设备管理 + 系统级入口（Services / 快捷指令 / 拖拽 / 通知）</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub">三条设计原则</h3>
+    <div class="body">
+      <p><strong>一、推送必须在 3 秒内完成。</strong>从按下 ⌘⇧I 到内容离手，中间不允许出现"选设备""选时长""确认"这类必答题。Auto 模式是默认且唯一的快路径，Manual 是可选的绕行。</p>
+      <p><strong>二、主窗口是"看"的地方，HUD 是"做"的地方。</strong>主窗口不承担快速输入职责（它有 Quick Send，但那只是把 HUD 调起来）；HUD 不承担管理职责（它没有设备列表页）。两者不重复造轮子。</p>
+      <p><strong>三、刷新不清屏。</strong>沿用 iOS 端已经写进代码的约定：任何刷新失败或任务被取消时，保留旧内容，不闪空、不回退到 loading 骨架。</p>
+    </div>
+
+    <div class="note"><b>不做什么。</b>首版不做本地笔记同步（Obsidian / Logseq），不做硬件商店页（Store 走外链），不做站内注册（注册与订阅一律跳 portal.iminklet.com，与 iOS 保持一致的合规策略）。</div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ 01 三层 ============ -->
+  <section class="ch" id="c1">
+    <div class="ch-head">
+      <span class="ch-num">01</span>
+      <h2 class="ch-title">三个界面层</h2>
+      <p class="ch-lede">App 以 accessory 模式常驻（默认无 Dock 图标）。菜单栏是唯一永远在场的东西，HUD 和主窗口都是按需出现的。</p>
+    </div>
+
+    <div class="grid3">
+      <div>
+        <h4 class="sub">菜单栏 · MenuBarExtra</h4>
+        <div class="body" style="font-size:13px">
+          <p>常驻状态栏图标。点开是一份"设备现状 + 动作"的速查表：每台设备一行（在线点、电量、最后在线），下面是 Send / Open / Show next / Settings / Quit。</p>
+          <p>图标本身携带状态：全部在线为实心字标，任一离线为空心，上传中为进度环。</p>
+        </div>
+      </div>
+      <div>
+        <h4 class="sub">HUD · NSPanel</h4>
+        <div class="body" style="font-size:13px">
+          <p>全局快捷键唤起的浮层，不激活 App、不抢当前窗口的空间（floating panel，跟随当前 Space 与屏幕）。唤起瞬间读取上下文：选中文本、前台浏览器的 URL。</p>
+          <p>发送完成后自动收起，焦点交还原来的 App。</p>
+        </div>
+      </div>
+      <div>
+        <h4 class="sub">主窗口 · NavigationSplitView</h4>
+        <div class="body" style="font-size:13px">
+          <p>标准可缩放窗口，默认 1040×720，最小 880×600。左侧栏三项：Home / Displays / Knowledge，底部是账号行。</p>
+          <p>设置不在侧栏里——按 Mac 习惯做成独立的 Settings 窗口（⌘,）。</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub">为什么设置要独立成窗口</h3>
+    <div class="body">
+      <p>iOS 把 Settings 作为第四个 Tab 是对的，因为手机没有"窗口"概念。Mac 上用户对 ⌘, 的肌肉记忆非常强，而且设置里有一项必须能在主窗口关闭时打开——<strong>快捷键录制</strong>：用户从菜单栏点 Settings 改快捷键，不应该被迫先打开一个 1040×720 的窗口。</p>
+    </div>
+
+    <h3 class="sub">窗口与生命周期</h3>
+    <table>
+      <thead><tr><th style="width:150px">对象</th><th style="width:180px">类型</th><th>行为</th></tr></thead>
+      <tbody>
+        <tr><td>菜单栏</td><td><code>MenuBarExtra</code></td><td>随 App 常驻，退出前不销毁</td></tr>
+        <tr><td>HUD</td><td><code>NSPanel</code> · nonactivating · floating</td><td>常驻内存、按需显示；再次按快捷键或 Esc 收起；失焦不自动关（防止拖拽文件时误关）</td></tr>
+        <tr><td>主窗口</td><td><code>WindowGroup</code>（单实例）</td><td>关闭即释放；菜单栏 Open / Dock 图标点击可重开</td></tr>
+        <tr><td>设置</td><td><code>Settings</code> scene</td><td>⌘, 打开，六个 tab</td></tr>
+        <tr><td>登录</td><td>独立 window，480×560</td><td>未登录时由任意入口触发；登录成功后自行关闭并回到触发源</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note"><b>Dock 图标是可选项。</b>默认 <code>.accessory</code>（只有菜单栏，不占 Dock、不进 ⌘Tab）。设置里提供"在 Dock 中显示"开关，打开后切 <code>.regular</code> —— 因为拖文件到 Dock 图标推送，是一个真实存在的桌面习惯。</div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ 02 系统集成 ============ -->
+  <section class="ch" id="c2">
+    <div class="ch-head">
+      <span class="ch-num">02</span>
+      <h2 class="ch-title">系统集成 —— Mac 端的真实护城河</h2>
+      <p class="ch-lede">这一章是 Mac 版存在的理由。每一项都要能回答："用户为什么不直接开浏览器？"</p>
+    </div>
+
+    <table>
+      <thead><tr><th style="width:168px">入口</th><th style="width:96px">优先级</th><th>说明与技术方案</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>全局快捷键</td><td><span class="tag p0">P0</span></td>
+          <td>默认 ⌘⇧I，可在设置中重录。用 <code>NSEvent</code> 全局监听或 Carbon <code>RegisterEventHotKey</code>（后者不需辅助功能权限，更稳）。</td>
+        </tr>
+        <tr>
+          <td>上下文抓取</td><td><span class="tag p0">P0</span></td>
+          <td>唤起时并行取两样东西：<strong>选中文本</strong>（优先 Accessibility API 读 <code>AXSelectedText</code>，无权限时回退到合成 ⌘C + 剪贴板还原，即 Electron 现在的做法）与<strong>前台浏览器 URL</strong>（AppleScript，覆盖 Safari / Chrome 系 / Firefox）。抓到的内容以灰色幽灵文本预填，按 Tab 采纳、Esc 丢弃 —— 绝不直接写进输入框。</td>
+        </tr>
+        <tr>
+          <td>Services 菜单</td><td><span class="tag p0">P0</span></td>
+          <td>"Send to inklet"。原生只需 Info.plist 的 <code>NSServices</code> + <code>NSApp.servicesProvider</code>，不再需要 Electron 那个 Obj-C++ N-API addon（<code>native/services/services.mm</code> 可以整块删掉）。接收 text / url / file-url / image 四类。</td>
+        </tr>
+        <tr>
+          <td>拖拽</td><td><span class="tag p0">P0</span></td>
+          <td>拖文件/图片/链接到 HUD 变成附件；拖到 Dock 图标直接进入待发送状态并唤起 HUD。</td>
+        </tr>
+        <tr>
+          <td>通知</td><td><span class="tag p1">P1</span></td>
+          <td><code>UNUserNotificationCenter</code>。首版只发本地通知：上传完成 / 上传失败可重试 / 设备已就绪显示。<em>服务端推送（内容送达、设备离线）需后端先支持，见第 10 章。</em></td>
+        </tr>
+        <tr>
+          <td>快捷指令 · App Intents</td><td><span class="tag p1">P1</span></td>
+          <td>直接复用 iOS 已有的三个 Intent（Send Text / Send Link / Send Image or File），Swift 代码几乎可以整段搬过来。macOS 上还能被 Automator、Raycast、终端 <code>shortcuts run</code> 调用。</td>
+        </tr>
+        <tr>
+          <td>分享扩展</td><td><span class="tag p1">P1</span></td>
+          <td>Share Extension（.appex）让 inklet 出现在系统分享面板里。需要 App Group 共享 Keychain。Services 菜单已覆盖大部分场景，所以排在 P1。</td>
+        </tr>
+        <tr>
+          <td>桌面小组件</td><td><span class="tag p2">P2</span></td>
+          <td>macOS 14 桌面小组件：Quick Send 与 Activity 热力图，与 iOS 版共用 WidgetKit 代码和 App Group 数据格式。</td>
+        </tr>
+        <tr>
+          <td>开机启动 / 自动更新</td><td><span class="tag p0">P0</span></td>
+          <td><code>SMAppService.mainApp.register()</code>；更新用 Sparkle 2（与现在 electron-updater 的产品行为一致：静默检查、有更新时弹卡片）。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note"><b>分发方式决定了上面一半的功能能不能做。</b>Mac App Store 的沙盒会禁掉 AppleScript 抓浏览器 URL、限制 Accessibility 读选中文本、也不允许 Sparkle。因此本设计假定 <b>Developer ID 直接分发 + 公证</b>，与现在 Electron 的分发方式一致。若要上架 MAS，需要砍掉"上下文抓取"，这是产品级取舍，请确认。</div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ 03 HUD ============ -->
+  <section class="ch" id="c3">
+    <div class="ch-head">
+      <span class="ch-num">03</span>
+      <h2 class="ch-title">HUD 速推面板</h2>
+      <p class="ch-lede">560×可变高。整个 App 90% 的使用时间发生在这 560 像素里，它必须比 Spotlight 更快消失。</p>
+    </div>
+
+    <div class="figs">
+      <div class="grid2">
+        <div class="fig">
+          <div class="hud">
+            <div class="hud-bar">
+              <div class="hud-brand"><b>inklet</b><span>Portal</span></div>
+              <div class="r"><span>kevin</span><span>&#9881;</span></div>
+            </div>
+            <div class="hud-box">
+              <div class="hud-text ph">What&rsquo;s on your mind?</div>
+              <div class="hud-tools">
+                <div class="tools-l"><button class="tool">&#8593;</button><button class="tool">&#9112;</button><button class="tool">&#128279;</button></div>
+                <div class="tools-r">
+                  <div class="pillgroup"><button class="on">Auto</button><button>Manual &#9662;</button></div>
+                  <button class="send dim">&#8593;</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="fig-cap"><b>3.1 空态</b><span>发送键置灰。左下三个工具：上传文件、粘贴、加链接。</span></div>
+        </div>
+
+        <div class="fig">
+          <div class="hud">
+            <div class="hud-bar">
+              <div class="hud-brand"><b>inklet</b><span>Portal</span></div>
+              <div class="r"><span>kevin</span><span>&#9881;</span></div>
+            </div>
+            <div class="hud-box">
+              <div class="hud-text"><span class="ghost">The best way to predict the future is to invent it.</span><span class="kbd">Tab</span></div>
+              <div class="hud-tools">
+                <div class="tools-l"><button class="tool">&#8593;</button><button class="tool">&#9112;</button><button class="tool">&#128279;</button></div>
+                <div class="tools-r">
+                  <div class="pillgroup"><button class="on">Auto</button><button>Manual &#9662;</button></div>
+                  <button class="send dim">&#8593;</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="fig-cap"><b>3.2 幽灵建议</b><span>抓到选中文本或浏览器 URL。Tab 采纳、Esc 丢弃、直接打字覆盖。URL 类建议采纳后会抓 OG 变成链接卡。</span></div>
+        </div>
+
+        <div class="fig">
+          <div class="hud">
+            <div class="hud-bar">
+              <div class="hud-brand"><b>inklet</b><span>Portal</span></div>
+              <div class="r"><span>kevin</span><span>&#9881;</span></div>
+            </div>
+            <div class="hud-box">
+              <div class="hud-text">读完这篇再决定要不要换调度器</div>
+              <div class="hud-tools">
+                <div class="tools-l"><button class="tool">&#8593;</button><button class="tool">&#9112;</button><button class="tool">&#128279;</button></div>
+                <div class="tools-r">
+                  <div class="pillgroup"><button class="on">Auto</button><button>Manual &#9662;</button></div>
+                  <button class="send">&#8593;</button>
+                </div>
+              </div>
+            </div>
+            <div class="hud-attach">
+              <div class="att"><div class="thumb"></div><div class="x">&times;</div></div>
+              <div class="att link"><b>Attention Is All You Need</b><span>arxiv.org</span><div class="x">&times;</div></div>
+              <div class="att file"><b>scheduler-notes.pdf</b><span>284 KB</span><div class="x">&times;</div></div>
+            </div>
+          </div>
+          <div class="fig-cap"><b>3.3 带附件</b><span>附件条在窗口下方展开（+80px），横向滚动。图片是拍立得缩略图，链接是书签卡（左侧 clay 色书脊），文件是回形针卡。沿用 iOS 的附件视觉语言。</span></div>
+        </div>
+
+        <div class="fig">
+          <div class="hud">
+            <div class="hud-bar">
+              <div class="hud-brand"><b>inklet</b><span>Portal</span></div>
+              <div class="r"><span>kevin</span><span>&#9881;</span></div>
+            </div>
+            <div class="hud-box">
+              <div class="hud-text">今晚的采购清单</div>
+              <div class="hud-tools">
+                <div class="tools-l"><button class="tool">&#8593;</button><button class="tool">&#9112;</button><button class="tool">&#128279;</button></div>
+                <div class="tools-r">
+                  <div class="pillgroup"><button>Auto</button><button class="on">Kitchen · 12h &#9662;</button></div>
+                  <button class="send">&#8593;</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="margin:-4px 0 0 auto;width:210px;position:relative;top:-4px">
+            <div class="mbmenu" style="border-radius:9px">
+              <div class="sec">DISPLAY</div>
+              <div class="it"><span style="width:11px">&nbsp;</span>Study</div>
+              <div class="it"><span style="width:11px">&#10003;</span>Kitchen</div>
+              <div class="it"><span style="width:11px">&nbsp;</span>Living Room</div>
+              <div class="sep"></div>
+              <div class="sec">SHOW FOR</div>
+              <div class="it"><span style="width:11px">&nbsp;</span>1 hour</div>
+              <div class="it"><span style="width:11px">&nbsp;</span>3 hours</div>
+              <div class="it"><span style="width:11px">&#10003;</span>12 hours</div>
+              <div class="it"><span style="width:11px">&nbsp;</span>1 day</div>
+              <div class="it"><span style="width:11px">&nbsp;</span>1 week</div>
+            </div>
+          </div>
+          <div class="fig-cap"><b>3.4 Manual 模式</b><span>点 Manual 弹出的是<strong>系统 Menu</strong>（不是自绘浮层）：两组带勾选的菜单项，键盘上下键和首字母跳转都是系统给的。选完即收起，胶囊上显示"设备 · 时长"。设备列表来自 <code>GET /api/devices</code>（Electron 版这里是写死的三台假设备）。</span></div>
+        </div>
+
+        <div class="fig">
+          <div class="hud">
+            <div class="hud-bar">
+              <div class="hud-brand"><b>inklet</b><span>Portal</span></div>
+              <div class="r"><span style="color:var(--ink2);text-decoration:underline">Login</span><span>&#9881;</span></div>
+            </div>
+            <div class="hud-box" style="position:relative">
+              <div class="hud-text ph">What&rsquo;s on your mind?</div>
+              <div class="hud-tools">
+                <div class="tools-l"><button class="tool">&#8593;</button><button class="tool">&#9112;</button><button class="tool">&#128279;</button></div>
+                <div class="tools-r">
+                  <div class="pillgroup"><button class="on">Auto</button><button>Manual &#9662;</button></div>
+                  <button class="send dim">&#8593;</button>
+                </div>
+              </div>
+              <div class="hud-lock"><span><u>Sign in</u> to start pushing</span></div>
+            </div>
+          </div>
+          <div class="fig-cap"><b>3.5 未登录</b><span>输入区被半透明遮罩盖住，点击任意处打开登录窗口。登录成功后遮罩淡出，之前拖进来的内容保留。</span></div>
+        </div>
+
+        <div class="fig">
+          <div class="hud">
+            <div class="hud-bar">
+              <div class="hud-brand"><b>inklet</b><span>Portal</span></div>
+              <div class="r"><span>kevin</span><span>&#9881;</span></div>
+            </div>
+            <div class="hud-box">
+              <div class="hud-text" style="color:var(--ink3)">Sending to Study…</div>
+              <div class="hud-tools">
+                <div class="tools-l"><button class="tool" style="opacity:.4">&#8593;</button><button class="tool" style="opacity:.4">&#9112;</button><button class="tool" style="opacity:.4">&#128279;</button></div>
+                <div class="tools-r">
+                  <div class="pillgroup" style="opacity:.5"><button class="on">Auto</button><button>Manual &#9662;</button></div>
+                  <button class="send ok">&#10003;</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="fig-cap"><b>3.6 发送反馈</b><span>发送键就是状态指示器：转圈 → 变绿打勾 1.2s → HUD 自动收起。失败时变红并在输入框上方显示一行可点的"Retry"，内容不清空。</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub">键盘流</h3>
+    <table>
+      <thead><tr><th style="width:150px">按键</th><th>行为</th></tr></thead>
+      <tbody>
+        <tr><td><code>⌘⇧I</code></td><td>唤起 / 收起（可改）。唤起时光标已在输入框，并抓取上下文</td></tr>
+        <tr><td><code>Tab</code> / <code>→</code></td><td>采纳幽灵建议</td></tr>
+        <tr><td><code>↩</code></td><td>发送</td></tr>
+        <tr><td><code>⇧↩</code></td><td>换行</td></tr>
+        <tr><td><code>⌘V</code></td><td>粘贴，图片自动转附件</td></tr>
+        <tr><td><code>Esc</code></td><td>有建议时丢弃建议；否则收起 HUD（内容保留到下次唤起）</td></tr>
+        <tr><td><code>⌘⌫</code></td><td>清空当前输入与附件</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note"><b>草稿保留。</b>Esc 收起时不清空内容——用户经常是"打了一半去查个东西再回来"。草稿在 App 退出时持久化到本地，重启后仍在。</div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ 04 主窗口 ============ -->
+  <section class="ch" id="c4">
+    <div class="ch-head">
+      <span class="ch-num">04</span>
+      <h2 class="ch-title">主窗口</h2>
+      <p class="ch-lede">三个页面：Home 看全局，Displays 管设备，Knowledge 翻已推送的内容。下面的原型可以点侧边栏切换。</p>
+    </div>
+
+    <div class="win" id="mainProto" style="max-width:940px">
+      <div class="win-bar">
+        <div class="traffic"><i></i><i></i><i></i></div>
+        <div class="win-title" id="protoTitle" style="margin-left:6px">Home</div>
+        <div class="right">
+          <span title="刷新" style="font-size:13px">&#8635;</span>
+          <span class="btn sm">&#43;&nbsp; Push</span>
+        </div>
+      </div>
+      <div class="win-body" style="min-height:520px">
+        <aside class="side">
+          <div class="side-label">WORKSPACE</div>
+          <div class="side-item on" data-page="home">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</div>
+          <div class="side-item" data-page="displays">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="4" width="19" height="13" rx="1.5"/><path d="M9 21h6M12 17v4"/></svg>Displays</div>
+          <div class="side-item" data-page="knowledge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v18H5.5A1.5 1.5 0 0 1 4 19.5z"/><path d="M8 7.5h7M8 11h7"/></svg>Knowledge</div>
+          <div class="side-foot"><div class="avatar">k</div><div class="who">kevin</div><div class="badge">free</div></div>
+        </aside>
+
+        <!-- HOME -->
+        <div class="pane" data-panel="home">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px">
+            <div>
+              <div class="kicker">SATURDAY, AUGUST 9</div>
+              <div class="h-title">Hi, Kevin!</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2)">
+              <span style="font-family:var(--serif);font-size:19px">21&deg;</span>
+              <span>Mostly clear · Champaign</span>
+            </div>
+          </div>
+
+          <div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;background:var(--ink);border-color:var(--ink)">
+            <div>
+              <div style="color:var(--paper);font-size:13.5px;font-weight:500">Push something</div>
+              <div style="color:rgba(245,243,237,.6);font-size:11.5px;margin-top:1px">文本、链接、图片、文件 — 或者直接按 ⌘⇧I</div>
+            </div>
+            <span class="btn ghost" style="margin-left:auto;background:rgba(245,243,237,.16);box-shadow:none;color:var(--paper);border-color:rgba(245,243,237,.34)">Open composer</span>
+          </div>
+
+          <div class="kicker">BUILDING YOUR SECOND BRAIN</div>
+          <div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:6px">
+            <div class="heat" id="homeHeat"></div>
+          </div>
+          <div style="font-size:11.5px;color:var(--ink3);margin-bottom:20px">142 items this season · 6 天连续推送</div>
+
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div class="kicker">YOUR DISPLAYS</div>
+            <span style="font-size:11px;color:var(--ink3);cursor:pointer">See all &rsaquo;</span>
+          </div>
+          <div style="display:flex;gap:12px">
+            <div class="card" style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px"><span class="dot"></span><b style="font-size:13px;font-weight:500">Study</b><span class="badge" style="margin-left:auto">92%</span></div>
+              <div style="font-size:11px;color:var(--ink3);margin-top:6px">Active now · pushed 2m ago</div>
+            </div>
+            <div class="card" style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px"><span class="dot off"></span><b style="font-size:13px;font-weight:500">Living Room</b><span class="badge" style="margin-left:auto">61%</span></div>
+              <div style="font-size:11px;color:var(--ink3);margin-top:6px">Last seen 3h ago</div>
+            </div>
+            <div class="card" style="flex:1;min-width:0;border-style:dashed;display:grid;place-items:center;color:var(--ink3);font-size:12px">+ Pair new display</div>
+          </div>
+        </div>
+
+        <!-- DISPLAYS -->
+        <div class="pane" data-panel="displays" hidden>
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px">
+            <div>
+              <div class="kicker">3 DISPLAYS · 2 ONLINE</div>
+              <div class="h-title">Displays</div>
+            </div>
+            <span class="btn ghost">Pair new display</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="card" style="cursor:pointer">
+              <div class="eink" style="margin-bottom:10px">
+                <div class="glass">
+                  <div class="meta"><span>Aug 9 15:32</span><span>92%</span></div>
+                  <div class="inner">
+                    <span class="sub">from arxiv.org</span>
+                    <div class="ttl">Attention Is All You Need</div>
+                    <div class="hr"></div>
+                    <div class="det">The dominant sequence transduction models are based on complex recurrent or convolutional neural networks…</div>
+                  </div>
+                </div>
+                <img class="frame" src="front_frame.png" alt="inklet display">
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="dot"></span><b style="font-size:13px;font-weight:500">Study</b>
+                <span style="font-size:11px;color:var(--ink3);margin-left:auto">Pushed 2m ago</span>
+              </div>
+            </div>
+
+            <div class="card" style="cursor:pointer;opacity:.62">
+              <div class="eink" style="margin-bottom:10px">
+                <div class="glass">
+                  <div class="meta"><span>Aug 9 12:04</span><span>61%</span></div>
+                  <div class="inner">
+                    <span class="sub">grocery list</span>
+                    <div class="ttl">今晚的采购清单</div>
+                    <div class="hr"></div>
+                    <div class="det">牛奶 · 鸡蛋 · 咖啡豆 · 番茄</div>
+                  </div>
+                </div>
+                <img class="frame" src="front_frame.png" alt="inklet display">
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="dot off"></span><b style="font-size:13px;font-weight:500">Living Room</b>
+                <span style="font-size:11px;color:var(--ink3);margin-left:auto">Offline · 3h ago</span>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:12px;border:1px dashed var(--rule);border-radius:10px;padding:16px;text-align:center;color:var(--ink3);font-size:12px;cursor:pointer">
+            + Pair new display &nbsp;<span style="color:var(--ink4)">输入设备上显示的 6 位配对码</span>
+          </div>
+        </div>
+
+        <!-- DEVICE DETAIL -->
+        <div class="pane" data-panel="detail" hidden>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink3);margin-bottom:14px;cursor:pointer">&larr; ALL DISPLAYS</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+            <h3 class="h-title">Study</h3>
+            <span class="dot" style="margin-bottom:2px"></span>
+            <span style="font-size:11.5px;color:var(--ink3)">Online · synced 2m ago</span>
+            <span style="margin-left:auto;display:flex;gap:7px">
+              <span class="btn ghost sm">Rename</span>
+              <span class="btn ghost sm">Show next</span>
+              <span class="btn sm">Push here</span>
+            </span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:22px;align-items:start">
+            <div>
+              <div class="eink">
+                <div class="glass">
+                  <div class="meta"><span>Aug 9 15:32</span><span>92%</span></div>
+                  <div class="inner">
+                    <span class="sub">from arxiv.org</span>
+                    <div class="ttl">Attention Is All You Need</div>
+                    <div class="hr"></div>
+                    <div class="det">The dominant sequence transduction models are based on complex recurrent or convolutional neural networks…</div>
+                  </div>
+                </div>
+                <img class="frame" src="front_frame.png" alt="inklet display">
+              </div>
+              <div class="kicker" style="text-align:center;margin-top:10px">CURRENTLY SHOWING</div>
+            </div>
+            <div>
+              <div class="kicker">DEVICE</div>
+              <div class="rowline"><span class="k">Model</span><span class="v">INKLET D1</span></div>
+              <div class="rowline"><span class="k">Battery</span><span class="v">92%</span></div>
+              <div class="rowline"><span class="k">Firmware</span><span class="v">1.4.2</span></div>
+              <div class="rowline"><span class="k">Network</span><span class="v">ONLINE</span></div>
+              <div class="rowline"><span class="k">Last seen</span><span class="v">AUG 9, 15:44</span></div>
+
+              <div class="kicker" style="margin-top:20px">QUEUE &amp; HISTORY</div>
+              <div class="rowline"><span style="font-size:12.5px;color:var(--ink)">今晚的采购清单</span><span class="badge ok">Queued</span></div>
+              <div class="rowline"><span style="font-size:12.5px;color:var(--ink)">Attention Is All You Need</span><span class="badge">Published</span></div>
+              <div class="rowline"><span style="font-size:12.5px;color:var(--ink)">读完这篇再决定</span><span class="badge">Confirmed</span></div>
+              <div style="font-size:11px;color:var(--ink3);padding-top:9px;cursor:pointer">Load more…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PAIR -->
+        <div class="pane" data-panel="pair" hidden>
+          <div style="max-width:420px;margin:32px auto 0;text-align:center">
+            <div class="kicker">STEP 1 OF 2</div>
+            <h3 class="h-title" style="margin-bottom:8px">Pair a new display</h3>
+            <p style="font-size:12.5px;color:var(--ink2);margin-bottom:22px">在墨水屏上打开设置，屏幕会显示一个 6 位配对码。</p>
+            <div style="display:flex;gap:8px;justify-content:center;margin-bottom:18px">
+              <span class="keycap" style="width:42px;height:52px;display:grid;place-items:center;font-size:20px;background:var(--input)">H</span>
+              <span class="keycap" style="width:42px;height:52px;display:grid;place-items:center;font-size:20px;background:var(--input)">7</span>
+              <span class="keycap" style="width:42px;height:52px;display:grid;place-items:center;font-size:20px;background:var(--input)">K</span>
+              <span class="keycap" style="width:42px;height:52px;display:grid;place-items:center;font-size:20px;background:var(--input)">2</span>
+              <span class="keycap" style="width:42px;height:52px;display:grid;place-items:center;font-size:20px;color:var(--ink4)">&middot;</span>
+              <span class="keycap" style="width:42px;height:52px;display:grid;place-items:center;font-size:20px;color:var(--ink4)">&middot;</span>
+            </div>
+            <span class="btn" style="opacity:.35">Pair display</span>
+            <p style="font-size:11.5px;color:var(--ink3);margin-top:20px">也可以 <u style="cursor:pointer">用摄像头扫码</u> — 支持 Mac 内置摄像头与连续互通相机</p>
+          </div>
+        </div>
+
+        <!-- KNOWLEDGE -->
+        <div class="pane" data-panel="knowledge" hidden>
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px">
+            <div>
+              <div class="kicker">YOUR SECOND BRAIN</div>
+              <div class="h-title">Knowledge</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="pillgroup" style="height:26px"><button class="on">Organized 128</button><button>Pending 14</button></div>
+              <span class="keycap" style="padding:4px 10px;color:var(--ink4)">Search…</span>
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--rule)">
+            <div class="rowline" style="padding:11px 0">
+              <div style="min-width:0"><div style="font-size:13px;color:var(--ink)">Attention Is All You Need</div><div style="font-size:11px;color:var(--ink3);margin-top:2px">Link · arxiv.org</div></div>
+              <div style="display:flex;gap:7px;align-items:center"><span class="badge">READY</span><span class="v" style="width:56px;text-align:right">2M AGO</span></div>
+            </div>
+            <div class="rowline" style="padding:11px 0">
+              <div style="min-width:0"><div style="font-size:13px;color:var(--ink)">今晚的采购清单</div><div style="font-size:11px;color:var(--ink3);margin-top:2px">Text</div></div>
+              <div style="display:flex;gap:7px;align-items:center"><span class="badge">READY</span><span class="v" style="width:56px;text-align:right">3H AGO</span></div>
+            </div>
+            <div class="rowline" style="padding:11px 0">
+              <div style="min-width:0"><div style="font-size:13px;color:var(--ink)">scheduler-notes.pdf</div><div style="font-size:11px;color:var(--ink3);margin-top:2px">File · 284 KB</div></div>
+              <div style="display:flex;gap:7px;align-items:center"><span class="badge" style="color:var(--warn);border-color:#e2d6b4">INGESTED</span><span class="v" style="width:56px;text-align:right">5H AGO</span></div>
+            </div>
+            <div class="rowline" style="padding:11px 0">
+              <div style="min-width:0"><div style="font-size:13px;color:var(--ink)">Screenshot 2026-08-08.png</div><div style="font-size:11px;color:var(--ink3);margin-top:2px">Image · 1.2 MB</div></div>
+              <div style="display:flex;gap:7px;align-items:center"><span class="badge">READY</span><span class="v" style="width:56px;text-align:right">1D AGO</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="fig-cap"><b>图 04</b><span>点左侧栏切换页面。Displays 里点任意设备卡进入详情，详情页的 &larr; 返回列表；"Pair new display"进入配对流程。</span></div>
+
+    <h3 class="sub">各页要点</h3>
+    <table>
+      <thead><tr><th style="width:120px">页面</th><th>内容与取舍</th></tr></thead>
+      <tbody>
+        <tr><td>Home</td><td>问候 + 日期、天气条（可关）、Quick Send 卡、26 周热力图 + streak、设备卡横排、套餐行。<strong>与 iOS 首页同构</strong>，方便共用取数逻辑。Mac 上删掉 iOS 的"Your Plan"独立区块，套餐信息挪到侧栏账号行与设置里。</td></tr>
+        <tr><td>Displays</td><td>网格卡片而非列表——桌面有横向空间，直接把每台设备"当前展示什么"用 e-ink 预览图铺出来，这是 iOS 上做不到的信息密度。离线设备整卡降透明度。</td></tr>
+        <tr><td>设备详情</td><td>左：当前展示（真机外框 + bitmap）。右：设备信息表 + 队列/历史（游标分页）。顶部动作：Rename / Show next（<code>push/refresh</code>）/ Push here（把 HUD 调起并预选该设备）。危险操作 Unbind 收在 Rename 弹窗里，红色 + 二次确认。</td></tr>
+        <tr><td>配对</td><td>以 6 位码为主路径（Mac 用户习惯打字），摄像头扫码为次路径。错误码逐一映射文案，沿用 iOS 已有的四种：格式错 / 无此设备 / 已被他人绑定 / 码已过期。</td></tr>
+        <tr><td>Knowledge</td><td>raw-items 列表，Organized / Pending 分段 + 搜索。首版只读。<em>后端目前的 <code>/api/raw-items</code> 只返回 id/type/status/时间，没有标题与摘要</em>——列表里的标题需要后端补字段，否则只能显示类型和 ID（见第 10 章）。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ 05 设置与登录 ============ -->
+  <section class="ch" id="c5">
+    <div class="ch-head">
+      <span class="ch-num">05</span>
+      <h2 class="ch-title">设置与登录</h2>
+      <p class="ch-lede">设置是独立窗口（⌘,），六个 tab。登录是一个 480×560 的独立窗口，三种登录方式与 iOS 完全一致。</p>
+    </div>
+
+    <div class="grid2">
+      <div class="fig">
+        <div class="win flat" id="setProto">
+          <div class="win-bar" style="border-bottom:0">
+            <div class="traffic"><i></i><i></i><i></i></div>
+            <div class="win-title" style="margin-left:6px" id="setTitle">General</div>
+          </div>
+          <div class="settabs" id="setTabs">
+            <div class="settab on" data-t="general"><span style="font-size:15px">&#9881;</span>General</div>
+            <div class="settab" data-t="account"><span style="font-size:15px">&#9679;</span>Account</div>
+            <div class="settab" data-t="keys"><span style="font-size:15px">&#8984;</span>Shortcuts</div>
+            <div class="settab" data-t="notify"><span style="font-size:15px">&#9788;</span>Notifications</div>
+            <div class="settab" data-t="about"><span style="font-size:15px">&#9432;</span>About</div>
+          </div>
+          <div style="padding:16px 20px 20px;min-height:250px">
+            <div data-set="general">
+              <div class="setrow"><div><div class="lbl">Launch at login</div><div class="hint">开机后在菜单栏静默启动</div></div><div class="toggle on"><i></i></div></div>
+              <div class="setrow"><div><div class="lbl">Show in Dock</div><div class="hint">关闭后只保留菜单栏图标；打开后可把文件拖到 Dock 图标推送</div></div><div class="toggle"><i></i></div></div>
+              <div class="setrow"><div><div class="lbl">Appearance</div><div class="hint">跟随系统 / 浅色 / 深色</div></div><div class="pillgroup" style="height:24px"><button class="on">System</button><button>Light</button><button>Dark</button></div></div>
+              <div class="setrow"><div><div class="lbl">Weather on Home</div><div class="hint">需要定位权限，来自 Apple 天气</div></div><div class="toggle on"><i></i></div></div>
+              <div class="setrow"><div><div class="lbl">Temperature unit</div></div><div class="pillgroup" style="height:24px"><button class="on">System</button><button>&deg;C</button><button>&deg;F</button></div></div>
+            </div>
+            <div data-set="account" hidden>
+              <div style="display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--rule-soft)">
+                <div class="avatar" style="width:38px;height:38px;font-size:18px">k</div>
+                <div><div style="font-size:13.5px">kevin</div><div style="font-size:11.5px;color:var(--ink3)">kevin.zhong@pivothire.tech</div></div>
+                <span class="badge" style="margin-left:auto">FREE</span>
+              </div>
+              <div class="setrow"><div><div class="lbl">Manage subscription</div><div class="hint">在浏览器中打开 portal.iminklet.com</div></div><span class="btn ghost sm">Open &#8599;</span></div>
+              <div class="setrow"><div><div class="lbl">API tokens</div><div class="hint">给脚本和自动化用的个人访问令牌</div></div><span class="btn ghost sm">Open &#8599;</span></div>
+              <div class="setrow"><div><div class="lbl" style="color:var(--err)">Sign out</div></div><span class="btn ghost sm" style="color:var(--err);border-color:#e0cccc">Sign out</span></div>
+            </div>
+            <div data-set="keys" hidden>
+              <div class="setrow"><div><div class="lbl">Open composer</div><div class="hint">在任何 App 中唤起 HUD</div></div><span class="keycap">⌘ ⇧ I</span></div>
+              <div class="setrow"><div><div class="lbl">Push clipboard directly</div><div class="hint">不打开 HUD，直接把剪贴板内容以 Auto 模式送出</div></div><span class="keycap" style="color:var(--ink4)">Record…</span></div>
+              <div class="setrow"><div><div class="lbl">Open main window</div></div><span class="keycap">⌘ 0</span></div>
+              <div class="setrow" style="border-top:1px solid var(--rule-soft);margin-top:8px;padding-top:12px">
+                <div><div class="lbl">Services menu</div><div class="hint">"Send to inklet" 出现在任意 App 的右键 → 服务菜单里。可在系统设置 › 键盘 › 键盘快捷键 › 服务中给它绑定快捷键。</div></div>
+                <span class="btn ghost sm">打开系统设置</span>
+              </div>
+              <div class="setrow"><div><div class="lbl">Accessibility 权限</div><div class="hint">用于读取当前选中的文本，未授权时回退到复制粘贴方案</div></div><span class="badge ok">已授权</span></div>
+            </div>
+            <div data-set="notify" hidden>
+              <div class="setrow"><div><div class="lbl">Push delivered</div><div class="hint">内容处理完成并进入设备队列时提醒</div></div><div class="toggle on"><i></i></div></div>
+              <div class="setrow"><div><div class="lbl">Push failed</div><div class="hint">上传失败时提醒，通知里可以直接重试</div></div><div class="toggle on"><i></i></div></div>
+              <div class="setrow"><div><div class="lbl">Display offline</div><div class="hint">设备离线超过 24 小时时提醒 <span style="color:var(--warn)">· 依赖后端事件，见第 10 章</span></div></div><div class="toggle"><i></i></div></div>
+              <div class="setrow"><div><div class="lbl">Low battery</div><div class="hint">电量低于 15% 时提醒</div></div><div class="toggle"><i></i></div></div>
+            </div>
+            <div data-set="about" hidden>
+              <div style="text-align:center;padding:18px 0 8px">
+                <div class="wordmark"><b style="font-size:24px">inklet</b><span>for Mac</span></div>
+                <div style="font-size:11.5px;color:var(--ink3);margin-top:10px">Version 1.0.0 (1) · macOS 14+</div>
+                <div style="margin-top:14px"><span class="btn ghost sm">Check for updates</span></div>
+              </div>
+              <div class="setrow"><div class="lbl">Help &amp; docs</div><span style="color:var(--ink4)">&#8599;</span></div>
+              <div class="setrow"><div class="lbl">Contact us</div><span style="color:var(--ink4)">core@iminklet.com</span></div>
+              <div class="setrow"><div class="lbl">Privacy policy</div><span style="color:var(--ink4)">&#8599;</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="fig-cap"><b>5.1 设置窗口</b><span>点 tab 切换。Shortcuts tab 里同时管理"我们自己的快捷键"和"系统里需要用户手动配的东西"（Services、权限），把权限状态直接暴露出来，而不是等功能失灵了用户去猜。</span></div>
+      </div>
+
+      <div class="fig">
+        <div class="win flat" style="max-width:330px;margin:0 auto">
+          <div class="win-bar" style="border-bottom:0"><div class="traffic"><i></i><i></i><i></i></div></div>
+          <div style="padding:6px 30px 30px;text-align:center">
+            <div class="wordmark" style="margin-bottom:22px"><b>inklet</b><span>Portal</span></div>
+            <div style="text-align:left">
+              <div class="keycap" style="display:block;padding:8px 11px;background:var(--input);border-radius:8px;color:var(--ink4);font-family:var(--sans);font-size:12.5px;margin-bottom:7px">Email or username</div>
+              <div class="keycap" style="display:block;padding:8px 11px;background:var(--input);border-radius:8px;color:var(--ink4);font-family:var(--sans);font-size:12.5px;margin-bottom:12px">Password</div>
+              <div class="btn" style="width:100%;justify-content:center;padding:8px">Sign in</div>
+              <div style="display:flex;align-items:center;gap:9px;margin:14px 0;color:var(--ink4);font-size:10px"><span style="flex:1;height:1px;background:var(--rule)"></span>OR<span style="flex:1;height:1px;background:var(--rule)"></span></div>
+              <div class="btn ghost" style="width:100%;justify-content:center;padding:7px;margin-bottom:7px">Continue with Google</div>
+              <div class="btn ghost" style="width:100%;justify-content:center;padding:7px">&#63743;&nbsp; Sign in with Apple</div>
+            </div>
+            <p style="font-size:11px;color:var(--ink3);margin:16px 0 0">没有账号？<u style="cursor:pointer">在浏览器中注册</u></p>
+          </div>
+        </div>
+        <div class="fig-cap"><b>5.2 登录窗口</b><span>密码 / Google（<code>ASWebAuthenticationSession</code> → <code>inklet://</code> 回调）/ Apple（原生按钮 + nonce）。错误以顶部 banner 显示 3 秒后消失，与 iOS 一致。注册不在 App 内。</span></div>
+
+        <h4 class="sub" style="margin-top:30px">令牌与会话</h4>
+        <div class="body" style="font-size:13px">
+          <p>access / refresh token 存 <strong>Keychain</strong>（Electron 版是明文 JSON 存在 userData 目录，这是个应当在原生版修掉的问题）。用户资料这类非敏感信息放 UserDefaults，供菜单栏和 HUD 同步读取。</p>
+          <p>会话恢复顺序与 iOS 相同：accessToken 调 <code>/auth/me</code> → 失败用 refreshToken 刷新重试 → 仍失败则清空凭证。App 启动时在后台完成，不阻塞菜单栏出现。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ 06 流程 ============ -->
+  <section class="ch" id="c6">
+    <div class="ch-head">
+      <span class="ch-num">06</span>
+      <h2 class="ch-title">流程与状态</h2>
+      <p class="ch-lede">三条关键路径：启动、推送、错误处理。</p>
+    </div>
+
+    <h3 class="sub">启动</h3>
+    <div class="body"><p>没有闪屏。菜单栏图标必须<strong>立刻</strong>出现（这是 accessory App 的礼节），会话恢复在后台跑，恢复期间图标显示为空心状态。</p></div>
+    <div class="flow">
+      <div class="node k"><b>App 启动</b><span>菜单栏立即出现</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="node"><b>后台恢复会话</b><span>Keychain → /auth/me</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="node"><b>已登录</b><span>拉设备列表 · 图标转实心</span></div>
+      <span class="arrow">/</span>
+      <div class="node"><b>未登录</b><span>HUD 显示遮罩<br>菜单栏显示 Sign in</span></div>
+    </div>
+    <div class="note">首次启动（从未登录过）是唯一例外：直接打开主窗口 + 登录窗口，让用户知道自己装了个什么东西；之后的每次启动都只有菜单栏。</div>
+
+    <h3 class="sub">推送</h3>
+    <div class="flow">
+      <div class="node k"><b>⌘⇧I</b><span>或 Services / 拖拽 / 菜单栏</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="node"><b>HUD 唤起</b><span>并行抓上下文</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="node"><b>编辑</b><span>文本 + 附件</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="node"><b>↩ 发送</b></div>
+    </div>
+    <div class="branch">
+      <div class="flow" style="margin:0">
+        <div class="node"><b>Auto</b><span>POST /api/raw-items/upload</span></div>
+        <span class="arrow">&rarr;</span>
+        <div class="node"><b>直传 S3</b><span>预签名表单，逐个附件</span></div>
+        <span class="arrow">&rarr;</span>
+        <div class="node"><b>confirm</b><span>后端 AI 决定去哪台设备</span></div>
+      </div>
+      <div class="flow" style="margin:8px 0 0">
+        <div class="node"><b>Manual</b><span>指定设备 + 时长</span></div>
+        <span class="arrow">&rarr;</span>
+        <div class="node" style="border-style:dashed"><b>接口待定</b><span>见第 10 章 Q1</span></div>
+      </div>
+    </div>
+    <div class="body" style="margin-top:14px">
+      <p>发送是<strong>乐观</strong>的：按下回车后 HUD 立即进入成功态并收起，上传在后台继续。失败时通过通知回来（"Push failed — Retry"），点通知重新唤起 HUD 并还原内容。这样用户不必盯着一个进度条等。</p>
+    </div>
+
+    <h3 class="sub">错误处理的统一规则</h3>
+    <table>
+      <thead><tr><th style="width:170px">场景</th><th>表现</th></tr></thead>
+      <tbody>
+        <tr><td>登录失败</td><td>登录窗口顶部 banner，3 秒后自动消失。401 → "Invalid email or password"；OAuth 流不映射 401，透传后端错误</td></tr>
+        <tr><td>上传失败</td><td>本地通知 + HUD 内容保留；发送键变红 2 秒后复位</td></tr>
+        <tr><td>列表拉取失败</td><td>页面内一行错误 + Retry 按钮；<strong>已有内容不清空</strong></td></tr>
+        <tr><td>配对失败</td><td>码输入框下方一行红字，四种错误码分别映射文案</td></tr>
+        <tr><td>会话过期</td><td>静默刷新一次；仍失败则清凭证、菜单栏变 Sign in，不弹打断式弹窗</td></tr>
+        <tr><td>无网络</td><td>菜单栏图标加一道斜线；HUD 仍可编辑，发送时排队并提示"Will send when back online"（P1）</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ 07 设计系统 ============ -->
+  <section class="ch" id="c7">
+    <div class="ch-head">
+      <span class="ch-num">07</span>
+      <h2 class="ch-title">设计系统</h2>
+      <p class="ch-lede">直接沿用 iOS 端的 <code>InkletTheme</code>：同一套语义 token，暗色是品牌色的"暖色反转"。Mac 端只增加窗口层级相关的少量 token。</p>
+    </div>
+
+    <h4 class="sub">字标 —— 一个整体，永不换行</h4>
+    <div class="body"><p><strong>「inklet PORTAL」是一个不可拆分的商标。</strong>后缀（PORTAL / for Mac）永远与 inklet 同行、基线对齐，跟在右侧；不换行、不居中堆叠、不因为容器变窄而折行。实现上封装成一个 <code>Wordmark</code> 视图，内部 <code>HStack(alignment: .firstTextBaseline)</code> + <code>.fixedSize()</code>，从根上杜绝折行。</p></div>
+    <div class="wm-demo">
+      <div class="wm-case">
+        <div class="wordmark"><b>inklet</b><span>Portal</span></div>
+        <div class="wm-verdict">✓ 横排、基线对齐、间距 6pt</div>
+      </div>
+      <div class="wm-case bad">
+        <div style="font-family:var(--serif);font-size:22px;line-height:1.1">inklet</div>
+        <div style="font-size:9.5px;letter-spacing:.16em;color:var(--ink3);text-transform:uppercase">Portal</div>
+        <div class="wm-verdict">✗ 拆成两行，商标被切断</div>
+      </div>
+      <div class="wm-case bad">
+        <div class="wordmark" style="align-items:center"><b>inklet</b><span style="font-size:13px;letter-spacing:.02em;text-transform:none">Portal</span></div>
+        <div class="wm-verdict">✗ 后缀不该与主字标等重</div>
+      </div>
+    </div>
+    <div class="note"><b>比例。</b>后缀字号约为 inklet 的 42%，字距 .16em，颜色降一级（textMuted）。在 HUD 的 14pt 字标下后缀是 8pt，在登录窗口的 22pt 下是 9.5pt —— 只按比例缩放，不单独调整。</div>
+
+    <h4 class="sub">色板（浅色 / 深色）</h4>
+    <div class="swatches">
+      <div class="sw"><i style="background:#F5F3ED"></i><b>bg</b><span>F5F3ED / 1A1A1A</span></div>
+      <div class="sw"><i style="background:#EFEDE7"></i><b>bgCard</b><span>EFEDE7 / 242321</span></div>
+      <div class="sw"><i style="background:#ECEAE4"></i><b>bgInput</b><span>ECEAE4 / 2B2A27</span></div>
+      <div class="sw"><i style="background:#E0DDD6"></i><b>border</b><span>E0DDD6 / 393631</span></div>
+      <div class="sw"><i style="background:#1A1A1A"></i><b>text</b><span>1A1A1A / F5F3ED</span></div>
+      <div class="sw"><i style="background:#666666"></i><b>textSecondary</b><span>666666 / A8A39A</span></div>
+      <div class="sw"><i style="background:#C4B99A"></i><b>linkAccent</b><span>C4B99A</span></div>
+      <div class="sw"><i style="background:#8B4444"></i><b>errorText</b><span>8B4444 / E0A0A0</span></div>
+    </div>
+
+    <div class="grid2" style="margin-top:24px">
+      <div>
+        <h4 class="sub">深色下的 HUD</h4>
+        <div class="darkpad">
+          <div style="background:#1A1A1A;border:1px solid #393631;border-radius:12px;overflow:hidden">
+            <div style="height:30px;display:flex;align-items:center;padding:0 12px">
+              <div style="margin:0 auto;display:flex;align-items:baseline;gap:5px"><b style="font-family:var(--serif);font-size:13px;color:#F5F3ED;font-weight:400">inklet</b><span style="font-size:8px;letter-spacing:.14em;color:#7D786F;text-transform:uppercase">Portal</span></div>
+            </div>
+            <div style="margin:0 11px 10px;background:#2B2A27;border:1px solid #393631;border-radius:10px">
+              <div style="padding:10px 12px 4px;font-size:12.5px;color:#7D786F">What&rsquo;s on your mind?</div>
+              <div style="display:flex;justify-content:space-between;padding:5px 8px 7px">
+                <div style="display:flex;gap:5px">
+                  <span style="width:25px;height:25px;border-radius:6px;border:1px solid #45413B;background:#35322D;display:grid;place-items:center;color:#A8A39A;font-size:11px">&#8593;</span>
+                  <span style="width:25px;height:25px;border-radius:6px;border:1px solid #45413B;background:#35322D;display:grid;place-items:center;color:#A8A39A;font-size:11px">&#9112;</span>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center">
+                  <span style="display:flex;background:#37342F;border-radius:6px;padding:1.5px;gap:1.5px;font-size:10px">
+                    <span style="background:#F5F3ED;color:#1A1A1A;padding:4px 8px;font-weight:500;border-radius:5px">Auto</span>
+                    <span style="color:#A8A39A;padding:4px 8px;border-radius:5px">Manual</span>
+                  </span>
+                  <span style="width:25px;height:25px;border-radius:6px;background:#F5F3ED;color:#1A1A1A;display:grid;place-items:center;font-size:12px">&#8593;</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fig-cap"><b>7.1</b><span>暗色不是"把颜色调暗"，而是把品牌的两个极值对调：墨黑变底、羊皮纸变字与主按钮。因为组件都用语义 token 表达，翻转是自动的。</span></div>
+      </div>
+
+      <div>
+        <h4 class="sub">字体与字阶</h4>
+        <table style="margin-top:4px">
+          <thead><tr><th style="width:118px">角色</th><th>用法</th></tr></thead>
+          <tbody>
+            <tr><td style="font-family:var(--serif);font-size:17px">Newsreader</td><td>字标、页面大标题、e-ink 预览里的内容标题。<strong>只用 Regular</strong>，不加粗</td></tr>
+            <tr><td>Inter</td><td>正文与控件，Regular / Medium 两档</td></tr>
+            <tr><td style="font-family:var(--mono);font-size:12px">SF Mono</td><td>时间戳、设备参数、eyebrow 标签，全大写 + 字距 .14em</td></tr>
+          </tbody>
+        </table>
+        <h4 class="sub">尺寸约定</h4>
+        <table style="margin-top:4px">
+          <tbody>
+            <tr><td>圆角</td><td>窗口 11 · 卡片 10 · 控件 7 · 附件 8</td></tr>
+            <tr><td>控件高</td><td>27（HUD 内）· 30（主窗口）</td></tr>
+            <tr><td>栅格</td><td>4 的倍数；页面边距 20–22</td></tr>
+            <tr><td>动效</td><td>120ms 反馈 · 200ms 过渡 · 400ms 页面切换，全部 ease-out；尊重"减弱动态效果"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ 08 控件策略 ============ -->
+  <section class="ch" id="c8">
+    <div class="ch-head">
+      <span class="ch-num">08</span>
+      <h2 class="ch-title">控件策略：能不能全用原生？</h2>
+      <p class="ch-lede">能，而且默认就该用。分界线不在「好不好看」，而在<strong>系统里有没有对应物</strong>——凡是 AppKit / SwiftUI 已经提供的<em>控件</em>，一律用原生；只有系统没有对应物的<em>内容视图</em>才自绘。</p>
+    </div>
+
+    <div class="body">
+      <p>把「用原生控件」拆成三档，每个界面元素只能落在其中一档：</p>
+    </div>
+
+    <div class="grid3" style="margin:16px 0 8px">
+      <div class="card" style="background:var(--paper)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span class="tier a">A</span><b style="font-size:13px;font-weight:500">直接用</b></div>
+        <div style="font-size:12px;color:var(--ink2);line-height:1.55">系统控件原样使用，外观和行为都不碰。列表、工具栏、菜单、Sheet、Alert、搜索框、Form。</div>
+      </div>
+      <div class="card" style="background:var(--paper)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span class="tier b">B</span><b style="font-size:13px;font-weight:500">原生 + tint</b></div>
+        <div style="font-size:12px;color:var(--ink2);line-height:1.55">仍是系统控件，只把强调色换成墨黑、输入底色换成纸色。<strong>行为、焦点、无障碍全部不变。</strong></div>
+      </div>
+      <div class="card" style="background:var(--paper)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span class="tier c">C</span><b style="font-size:13px;font-weight:500">必须自绘</b></div>
+        <div style="font-size:12px;color:var(--ink2);line-height:1.55">系统里根本没有这个东西：字标、热力图、e-ink 预览、附件卡、6 位配对码、快捷键录制器。</div>
+      </div>
+    </div>
+
+    <div class="note"><b>整个 App 的强调色只需要一行。</b>在窗口根视图上 <code>.tint(InkletTheme.text)</code>，所有 <code>borderedProminent</code> 按钮、Toggle、Segmented Picker、选中态、焦点环就都变成墨黑，不必逐个重绘。这正是 B 档存在的意义——品牌通过<strong>排版、纸色底、字标</strong>表达，而不是通过重画一个开关。</div>
+
+    <h3 class="sub">原生控件在 inklet 主题下的样子</h3>
+    <div class="ctl-grid">
+      <div class="ctl">
+        <div class="n">Button</div>
+        <div class="ctl-row">
+          <span class="ak-btn prom">Push</span>
+          <span class="ak-btn">Rename</span>
+          <span class="ak-btn plain">Cancel</span>
+          <span class="ak-btn dis">Send</span>
+        </div>
+        <div class="d">.borderedProminent / .bordered / .plain，禁用态交给系统</div>
+      </div>
+      <div class="ctl">
+        <div class="n">Toggle</div>
+        <div class="ctl-row" style="gap:14px">
+          <span style="display:flex;align-items:center;gap:7px;font-size:12px"><span class="ak-switch on"><i></i></span>Launch at login</span>
+          <span class="ak-switch"><i></i></span>
+        </div>
+        <div class="d">系统 switch，tint 后开启态为墨黑（iOS 版的自绘 InkToggle 可以退役）</div>
+      </div>
+      <div class="ctl">
+        <div class="n">Picker · segmented</div>
+        <div class="ctl-row"><span class="ak-seg"><span class="on">Auto</span><span>Manual</span></span></div>
+        <div class="ctl-row" style="margin-top:8px"><span class="ak-seg"><span class="on">System</span><span>°C</span><span>°F</span></span></div>
+        <div class="d">选中块自动取 tint 色</div>
+      </div>
+      <div class="ctl">
+        <div class="n">TextField</div>
+        <div class="ctl-row" style="flex-direction:column;align-items:stretch;gap:7px">
+          <span class="ak-field">系统默认白底</span>
+          <span class="ak-field paper focus">纸色变体 · 聚焦</span>
+        </div>
+        <div class="d">我们取下面这种：纯白输入框在羊皮纸底上过亮。焦点环仍是系统的，只是染成墨色</div>
+      </div>
+      <div class="ctl">
+        <div class="n">Menu · Popup</div>
+        <div class="ctl-row"><span class="ak-pop">Study<b>⌄</b></span><span class="ak-pop">12 hours<b>⌄</b></span></div>
+        <div class="d">HUD 的设备与时长选择器直接用系统 Menu，免费获得键盘导航</div>
+      </div>
+      <div class="ctl">
+        <div class="n">Checkbox · Progress</div>
+        <div class="ctl-row" style="margin-bottom:9px"><span class="ak-check on">✓</span><span style="font-size:12px">Remember this display</span></div>
+        <div class="ak-prog"><i></i></div>
+        <div class="d">上传进度用 ProgressView，不自绘转圈</div>
+      </div>
+      <div class="ctl">
+        <div class="n">Searchable</div>
+        <div class="ctl-row"><span class="ak-search">⌕&nbsp; Search knowledge</span></div>
+        <div class="d">.searchable() 自带 ⌘F、清除按钮、工具栏折叠行为</div>
+      </div>
+      <div class="ctl">
+        <div class="n">List · sidebar</div>
+        <div class="ak-list"><div class="on">Study</div><div>Living Room</div><div>Kitchen</div></div>
+        <div class="d">选中行填 tint 色，右键菜单、拖放、键盘上下键全部免费</div>
+      </div>
+    </div>
+
+    <h3 class="sub">逐项归属</h3>
+    <table>
+      <thead><tr><th style="width:34px"></th><th style="width:186px">界面元素</th><th style="width:230px">用什么</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tier a">A</span></td><td>侧边栏 / 页面容器</td><td><code>NavigationSplitView</code> + <code>List(.sidebar)</code></td><td>连同折叠、宽度记忆、⌘⌃S 一起白拿</td></tr>
+        <tr><td><span class="tier a">A</span></td><td>工具栏</td><td><code>.toolbar { ToolbarItem }</code></td><td>用户可自定义工具栏、窄窗口自动折叠成 »</td></tr>
+        <tr><td><span class="tier a">A</span></td><td>设置窗口</td><td><code>Settings</code> + <code>TabView</code> + <code>Form(.grouped)</code></td><td>直接长成系统设置的样子，⌘, 免费</td></tr>
+        <tr><td><span class="tier a">A</span></td><td>菜单栏</td><td><code>MenuBarExtra(style: .menu)</code></td><td>真·系统菜单，不是伪装成菜单的窗口</td></tr>
+        <tr><td><span class="tier a">A</span></td><td>空态</td><td><code>ContentUnavailableView</code></td><td>macOS 14+</td></tr>
+        <tr><td><span class="tier a">A</span></td><td>确认 / 重命名 / 解绑</td><td><code>.confirmationDialog</code> · <code>.sheet</code> · <code>.alert</code></td><td>破坏性操作用系统的红色 destructive role</td></tr>
+        <tr><td><span class="tier a">A</span></td><td>右键菜单 / 拖放</td><td><code>.contextMenu</code> · <code>.dropDestination</code></td><td>拖放高亮由系统绘制</td></tr>
+        <tr><td><span class="tier b">B</span></td><td>按钮 / 开关 / 分段控件</td><td>原生 + <code>.tint(ink)</code></td><td>一行根视图 tint 全局生效</td></tr>
+        <tr><td><span class="tier b">B</span></td><td>输入框</td><td><code>TextField</code> + 纸色背景</td><td>保留系统焦点环与右键（拼写、替换、服务）</td></tr>
+        <tr><td><span class="tier b">B</span></td><td>Sign in with Apple</td><td><code>SignInWithAppleButton</code></td><td>必须用官方按钮，只能调黑白与圆角</td></tr>
+        <tr><td><span class="tier c">C</span></td><td>字标</td><td>自绘 <code>Wordmark</code></td><td>见 07 章：横排、不可换行</td></tr>
+        <tr><td><span class="tier c">C</span></td><td>HUD 面板底板</td><td><code>NSPanel</code> + 纸色圆角</td><td>系统没有「不抢焦点的输入浮层」这个现成物</td></tr>
+        <tr><td><span class="tier c">C</span></td><td>HUD 输入区</td><td>自定义 <code>NSTextView</code></td><td>要在同一处叠加幽灵建议并支持 Tab 采纳，系统 TextEditor 做不到</td></tr>
+        <tr><td><span class="tier c">C</span></td><td>热力图 / e-ink 预览 / 附件卡</td><td><code>Canvas</code> · 自绘视图</td><td>这些是内容，不是控件</td></tr>
+        <tr><td><span class="tier c">C</span></td><td>6 位配对码</td><td>6 个 TextField 组合</td><td>需要自动跳格、整段粘贴、退格回跳</td></tr>
+        <tr><td><span class="tier c">C</span></td><td>快捷键录制器</td><td>自绘 + <code>NSEvent</code> 监听</td><td>系统未开放此控件；不引第三方库</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub">为什么不走极端</h3>
+    <div class="body">
+      <p><strong>不全 A（连 tint 都不调）：</strong>系统强调色跟着用户的个人偏好走，可能是蓝、粉、橙。inklet 的主按钮是墨黑，这是品牌资产，不能交给系统随机。</p>
+      <p><strong>不全 C（像 iOS 版那样自绘）：</strong>iOS 端自绘 <code>InkToggle</code> 已经付出了代价——要自己保证深浅色下旋钮的对比度。Mac 用户对控件行为的期待严格得多：Tab 遍历顺序、焦点环、VoiceOver 标签、右键菜单、拖放高亮、「减弱动态效果」、辅助功能里的「增强对比度」。这些自绘全都要重写一遍，而且每次系统更新都可能对不上。</p>
+      <p>结论：<strong>控件交给系统，气质交给排版、纸色和字标。</strong>这也让代码量显著下降——现在 Electron 版那 1900 行 tsx 里有相当一部分是在手绘 toggle、下拉和按钮 hover。</p>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ 09 API ============ -->
+  <section class="ch" id="c9">
+    <div class="ch-head">
+      <span class="ch-num">09</span>
+      <h2 class="ch-title">接口依赖</h2>
+      <p class="ch-lede">全部复用 iOS 已经打通的接口，服务层代码（<code>AuthService</code> / <code>DeviceService</code> / <code>ContentService</code> / <code>KeychainService</code>）可以跨平台共享，只需替换 UIKit 相关的少量代码。</p>
+    </div>
+
+    <table>
+      <thead><tr><th style="width:150px">域</th><th style="width:250px">接口</th><th>用在哪</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="4">auth.iminklet.com</td><td><code>POST /auth/login</code></td><td>登录窗口</td></tr>
+        <tr><td><code>POST /auth/refresh</code> · <code>GET /auth/me</code></td><td>启动恢复、401 自动重试</td></tr>
+        <tr><td><code>/auth/oauth/google?client=desktop</code></td><td>Google 登录，回调 <code>inklet://</code></td></tr>
+        <tr><td><code>POST /auth/oauth/apple/native</code></td><td>Sign in with Apple</td></tr>
+        <tr><td rowspan="6">dev.iminklet.com</td><td><code>GET /api/devices</code></td><td>菜单栏、Home、Displays、HUD 的 Manual 选择器</td></tr>
+        <tr><td><code>GET /api/devices/{id}/health</code></td><td>设备详情的实时状态</td></tr>
+        <tr><td><code>GET /api/devices/{id}/push</code></td><td>"当前展示"预览图</td></tr>
+        <tr><td><code>POST /api/devices/{id}/push/refresh</code></td><td>Show next</td></tr>
+        <tr><td><code>GET /api/devices/{id}/pushes</code></td><td>历史（游标分页）</td></tr>
+        <tr><td><code>PUT /nickname</code> · <code>POST /unbind</code> · <code>POST /bind/code</code></td><td>重命名、解绑、配对</td></tr>
+        <tr><td rowspan="2">内容</td><td><code>POST /api/raw-items/upload</code> → S3 → <code>/confirm</code></td><td>所有推送路径（HUD、Services、拖拽、快捷指令）共用同一个三步上传</td></tr>
+        <tr><td><code>GET /api/raw-items</code></td><td>Knowledge 列表、Home 热力图</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note"><b>域名。</b>业务 API 目前硬编码在 <code>dev.iminklet.com</code>。Mac 端首版就应该把它做成可配置（Debug/Release 两套 + 内部隐藏开关），避免重蹈 iOS 上线前才发现要切环境的覆辙。</div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ 10 分期 ============ -->
+  <section class="ch" id="c10">
+    <div class="ch-head">
+      <span class="ch-num">10</span>
+      <h2 class="ch-title">分期与待定问题</h2>
+    </div>
+
+    <h3 class="sub">分期</h3>
+    <table>
+      <thead><tr><th style="width:74px">阶段</th><th style="width:230px">目标</th><th>范围</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="tag p0">P0</span></td>
+          <td>能替换掉现在的 Electron 版</td>
+          <td>登录（三种方式，Keychain）· HUD 全功能（文本/图片/文件/链接、Auto、附件、幽灵建议、草稿）· 全局快捷键 · Services 菜单 · 拖拽 · 菜单栏 · 主窗口 Home / Displays / 详情 / 配对 · 设置（General / Account / Shortcuts / About）· Sparkle 自动更新 · 深浅色</td>
+        </tr>
+        <tr>
+          <td><span class="tag p1">P1</span></td>
+          <td>比 Electron 版明显更好</td>
+          <td>Manual 模式（真实设备 + 时长）· Knowledge 页 · 本地通知 · App Intents / 快捷指令 · Share Extension · 天气 · 离线队列 · 摄像头扫码配对</td>
+        </tr>
+        <tr>
+          <td><span class="tag p2">P2</span></td>
+          <td>桌面独占能力</td>
+          <td>Obsidian / Logseq 本地库同步（Sources）· 桌面小组件 · Spotlight / Raycast 集成 · Store 页 · 多账号</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub">需要你拍板的问题</h3>
+
+    <div class="q"><em>Q1</em><div>
+      <b>Manual 模式到底走哪条接口？</b>
+      <p>Electron 版的 Manual 只是 UI，设备是写死的假数据，时长参数没有真正发出去；Web Portal 的 Manual 走 <code>POST /api/devices/{id}/cmd</code> 且<strong>只支持纯文本</strong>。而设计里 Manual 是可以带附件的。</p>
+      <p class="ask">→ 需要后端提供"指定设备 + 展示时长"的上传参数（例如 upload 时带 <code>targetDeviceId</code> / <code>ttl</code>），否则 Mac 版的 Manual 也只能退化成纯文本直推。</p>
+    </div></div>
+
+    <div class="q"><em>Q2</em><div>
+      <b>分发方式：Developer ID 还是 Mac App Store？</b>
+      <p>本设计假定 Developer ID + 公证。若走 MAS，沙盒会让"抓取选中文本 / 前台浏览器 URL"和 Sparkle 更新都不可用，HUD 的幽灵建议会失去大半价值。</p>
+      <p class="ask">→ 建议 Developer ID 直发（与现状一致），MAS 留作后续单独评估。</p>
+    </div></div>
+
+    <div class="q"><em>Q3</em><div>
+      <b>Knowledge 页的数据够不够？</b>
+      <p><code>GET /api/raw-items</code> 目前只返回 id / type / status / 时间戳，没有标题、摘要、缩略图。列表会显示成一堆 UUID。</p>
+      <p class="ask">→ 需要后端在列表接口补 title / summary（或提供 detail 接口）。若短期做不了，Knowledge 页应推迟到 P1 之后。</p>
+    </div></div>
+
+    <div class="q"><em>Q4</em><div>
+      <b>通知靠什么触发？</b>
+      <p>"内容已送达设备""设备离线"这类提醒需要服务端事件。iOS 端的 APNs 链路也尚未闭环。</p>
+      <p class="ask">→ 首版只做本地通知（上传成功/失败）。若要做设备状态提醒，最省事的方案是 Mac 端低频轮询 <code>/api/devices</code>（例如 5 分钟一次，App 在前台时才轮询），确认是否接受。</p>
+    </div></div>
+
+    <div class="q"><em>Q5</em><div>
+      <b>天气模块要不要保留？</b>
+      <p>WeatherKit 需要付费开发者账号配置 entitlement，并且必须显示 Apple 天气归因 logo。Mac 上用户的菜单栏通常已经有天气。</p>
+      <p class="ask">→ 建议 Mac 版首页保留（与 iOS 一致，默认开启，可关），但排到 P1。</p>
+    </div></div>
+
+    <div class="q"><em>Q6</em><div>
+      <b>附件限制沿用 iOS 的吗？</b>
+      <p>iOS 是单文件 ≤10MB、图片最多 5 张。Mac 上拖一个 30MB 的 PDF 是很自然的动作。</p>
+      <p class="ask">→ 需要确认后端与 S3 预签名的实际上限，再决定 Mac 端提示文案（"文件超过 10MB"还是直接支持）。</p>
+    </div></div>
+
+    <div class="q"><em>Q7</em><div>
+      <b>Electron 版怎么退场？</b>
+      <p>两者共用 <code>inklet://</code> URL scheme 和同一个快捷键，同时装会互相抢。</p>
+      <p class="ask">→ 建议原生版首次启动时检测到 Electron 版存在则提示"发现旧版本，是否退出并移到废纸篓"，并沿用同一个 Sparkle appcast 做过渡。</p>
+    </div></div>
+
+    <h3 class="sub">下一步</h3>
+    <div class="body">
+      <p>这份稿子确认后，我会按 P0 范围搭 Xcode 工程：SwiftUI App + MenuBarExtra + NSPanel HUD，服务层从 <code>inklet-ios</code> 直接搬（改掉 UIKit 依赖），先把"⌘⇧I → 打字 → 回车 → 上屏"这条主链路跑通，再补主窗口的三个页面。</p>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<script>
+// 热力图填充
+function fillHeat(el, weeks, seed){
+  if(!el) return;
+  let s = seed;
+  const rnd = () => (s = (s*1103515245+12345) & 0x7fffffff) / 0x7fffffff;
+  let html = '';
+  for(let w=0; w<weeks; w++){
+    html += '<i>';
+    for(let d=0; d<7; d++){
+      const r = rnd();
+      const lv = r>.93 ? 4 : r>.82 ? 3 : r>.62 ? 2 : r>.38 ? 1 : 0;
+      html += '<b class="'+(lv?('l'+lv):'')+'"></b>';
+    }
+    html += '</i>';
+  }
+  el.innerHTML = html;
+}
+fillHeat(document.getElementById('heroHeat'), 20, 7);
+fillHeat(document.getElementById('homeHeat'), 26, 42);
+
+// 桌面场景焦点切换
+const stage = document.getElementById('stage');
+document.getElementById('stageSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  stage.dataset.focus = b.dataset.f;
+  stage.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+});
+document.getElementById('mbTrigger').addEventListener('click', () => {
+  stage.dataset.focus = 'menu';
+  document.querySelectorAll('#stageSeg button').forEach(x => x.classList.toggle('on', x.dataset.f === 'menu'));
+});
+
+// 主窗口原型：侧栏切页
+const proto = document.getElementById('mainProto');
+const titles = {home:'Home', displays:'Displays', detail:'Study', knowledge:'Knowledge', pair:'Pair a display'};
+function showPanel(name){
+  proto.querySelectorAll('[data-panel]').forEach(p => p.hidden = p.dataset.panel !== name);
+  document.getElementById('protoTitle').textContent = titles[name] || name;
+  const nav = name === 'detail' || name === 'pair' ? 'displays' : name;
+  proto.querySelectorAll('.side-item').forEach(i => i.classList.toggle('on', i.dataset.page === nav));
+}
+proto.querySelectorAll('.side-item').forEach(i => i.addEventListener('click', () => showPanel(i.dataset.page)));
+proto.querySelector('[data-panel="displays"]').addEventListener('click', e => {
+  if(e.target.closest('.card')) showPanel('detail');
+  else if(e.target.closest('[style*="dashed"]')) showPanel('pair');
+});
+proto.querySelector('[data-panel="detail"]').addEventListener('click', e => {
+  if(e.target.textContent.includes('ALL DISPLAYS')) showPanel('displays');
+});
+
+// 设置窗口 tab
+const setProto = document.getElementById('setProto');
+const setTitles = {general:'General', account:'Account', keys:'Shortcuts', notify:'Notifications', about:'About'};
+setProto.querySelector('#setTabs').addEventListener('click', e => {
+  const t = e.target.closest('.settab'); if(!t) return;
+  setProto.querySelectorAll('.settab').forEach(x => x.classList.toggle('on', x === t));
+  setProto.querySelectorAll('[data-set]').forEach(p => p.hidden = p.dataset.set !== t.dataset.t);
+  document.getElementById('setTitle').textContent = setTitles[t.dataset.t];
+});
+
+// 导航高亮
+const links = [...document.querySelectorAll('.nav a')];
+const secs = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const spy = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    if(en.isIntersecting){
+      links.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + en.target.id));
+    }
+  });
+}, {rootMargin:'-10% 0px -80% 0px'});
+secs.forEach(s => spy.observe(s));
+</script>
+</body>
+</html>

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Native macOS app version
+        description: inklet Portal for macOS version
         required: true
         default: "0.1.0"
       release_tag:
@@ -99,13 +99,13 @@ jobs:
         run: |
           export INKLET_VERSION="$RELEASE_VERSION"
           export INKLET_SIGN_IDENTITY="$MAC_SIGN_IDENTITY"
-          ./macos/Scripts/build-app.sh release
+          ./Scripts/build-app.sh release
 
       - name: Create signed disk image
         run: |
           export INKLET_VERSION="$RELEASE_VERSION"
           export INKLET_SIGN_IDENTITY="$MAC_SIGN_IDENTITY"
-          ./macos/Scripts/package-dmg.sh
+          ./Scripts/package-dmg.sh
 
       - name: Decode notarization key
         env:
@@ -123,7 +123,7 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
-          DMG="macos/dist/inklet-$RELEASE_VERSION-mac-universal.dmg"
+          DMG="dist/inklet-portal-$RELEASE_VERSION-mac-universal.dmg"
           xcrun notarytool submit "$DMG" \
             --key "$APPLE_API_KEY_PATH" \
             --key-id "$APPLE_API_KEY_ID" \
@@ -131,44 +131,23 @@ jobs:
             --wait
           xcrun stapler staple "$DMG"
           xcrun stapler validate "$DMG"
-          cp "$DMG" macos/dist/inklet-macOS.dmg
+          cp "$DMG" dist/inklet-portal-macOS.dmg
 
       - name: Upload native macOS release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "$RELEASE_TAG" \
-            "macos/dist/inklet-$RELEASE_VERSION-mac-universal.dmg" \
-            macos/dist/inklet-macOS.dmg \
+            "dist/inklet-portal-$RELEASE_VERSION-mac-universal.dmg" \
+            dist/inklet-portal-macOS.dmg \
             --clobber
 
       - name: Remove signing keychain
         if: always()
         run: security delete-keychain "$SIGNING_KEYCHAIN" 2>/dev/null || true
 
-  build-win:
-    needs: create-release
-    if: github.event_name == 'push'
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Build & Publish (Windows)
-        run: pnpm build && pnpm exec electron-builder --win --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   publish-release:
-    needs: [build-mac, build-win]
+    needs: build-mac
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
