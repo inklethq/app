@@ -36,17 +36,24 @@ stores account login/refresh tokens. Last successful frames remain available
 offline. WidgetKit controls refresh timing; the 30-minute requested timeline does
 not guarantee immediate or periodic delivery.
 
-The text/image/AI modes now share the documented targetless Presentation pipeline:
-`POST /api/app/v1/contents` → upload binary assets without Authorization → confirm
-→ poll Content → poll the requested PNG rendition → download (renew expired URLs
-with GET Presentation) → publish PNG to the selected Virtual Display → cache PNG
-and Scene in the App Group → reload Widget timelines.
+The text/image/AI modes share the Content → Analysis → Presentation pipeline:
+`POST /api/app/v1/contents` (title + assets) → upload binary assets without
+Authorization → `POST /api/app/v1/analyses` with `target.output` at the display's
+viewport → poll `GET /analyses/{id}/events?after=` for the agent's progress and the
+run state → read the Presentation → poll the requested PNG rendition → download
+(renew expired URLs with GET Presentation) → publish PNG to the selected Virtual
+Display → cache PNG and Scene in the App Group → reload Widget timelines. There is
+no confirm step; the backend verifies uploads from storage events and lazily when
+the Analysis is created.
 
-Text is rendered locally and submitted as a hardcode PNG; Image uses hardcode;
-AI uses auto and requires Pro. The existing macOS Auto composer now requires an
-explicit Virtual Display selection. Both native display detail pages offer all
-three modes. Output requests use the display's logical dimensions at 2× density.
-An existing Scene can supply a missing output size through POST /renditions.
+Text is rendered locally and submitted as a direct (`mode = direct`) PNG; Image uses
+direct; AI uses `mode = ai` and requires Pro, with "using my recent notes" adding
+`context: "history"` over the last 7 days. The composer offers the same four
+actions as the web Portal — just upload, make a card, make a card using recent
+notes, show it as-is — and a target picker: let inklet choose, a hardware
+display, or a Virtual Display. Output requests use the display's logical
+dimensions at 2× density. An existing Scene can supply a missing output size
+through POST /renditions.
 
 Nullable rendition URLs/expiry, preparing/failed states, aggregate-ready with a
 failed PNG, sliding access-token renewal, and 429 Retry-After are handled. A failed

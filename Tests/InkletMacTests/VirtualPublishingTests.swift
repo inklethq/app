@@ -14,17 +14,31 @@ private actor PublishingServer {
     init(id: UUID, image: Data, profile: VirtualDisplaySizeProfile = .legacy) { self.id = id; self.image = image; self.profile = profile }
     func request(_ path: String, _ method: String, _ body: Data?, _ headers: [String: String]) throws -> Data {
         if path == "api/app/v1/contents" {
+            let body = try #require(body)
+            let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+            #expect(json["mode"] == nil)
+            #expect(json["output"] == nil)
+            return Data(#"{"content":{"id":"content","state":"ready","assets":[],"createdAt":"now"},"uploadTickets":[]}"#.utf8)
+        }
+        if path == "api/app/v1/analyses" {
             generations += 1
             let body = try #require(body)
             let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
-            let output = try #require(json["output"] as? [String: Any])
+            let target = try #require(json["target"] as? [String: Any])
+            let output = try #require(target["output"] as? [String: Any])
             let viewport = try #require(output["viewport"] as? [String: Int])
             #expect(viewport["width"] == profile.width * 2)
             #expect(viewport["height"] == profile.height * 2)
-            return Data(#"{"content":{"id":"content","state":"ready","presentationIds":["presentation"]},"uploadTickets":[]}"#.utf8)
+            return Data(#"{"id":"analysis","mode":"ai","state":"queued","outcome":null,"contentIds":["content"],"context":"submitted","presentationIds":[],"createdAt":"now"}"#.utf8)
+        }
+        if path.hasPrefix("api/app/v1/analyses/analysis/events") {
+            return Data(#"{"items":[],"nextAfter":0,"hasMore":false,"state":"completed"}"#.utf8)
+        }
+        if path == "api/app/v1/analyses/analysis" {
+            return Data(#"{"id":"analysis","mode":"ai","state":"completed","outcome":"presentations","contentIds":["content"],"context":"submitted","presentationIds":["presentation"],"createdAt":"now"}"#.utf8)
         }
         if path == "api/app/v1/presentations/presentation" {
-            let template = Data(##"{"id":"presentation","contentIds":["content"],"mode":"auto","state":"ready","createdAt":"now","updatedAt":"now","scene":{"mediaType":"application/vnd.inklet.scene+json;version=1","version":1,"data":{"version":1,"viewport":{"width":720,"height":752},"background":"#ffffff","elements":[]}},"renditions":[{"id":"rendition","format":"png","mediaType":"image/png","width":720,"height":752,"state":"ready","url":"https://images.example/frame.png","expiresAt":"later","updatedAt":"now"}]}"##.utf8)
+            let template = Data(##"{"id":"presentation","analysisId":"analysis","contentIds":[{"id":"content","role":"input"}],"mode":"ai","state":"ready","createdAt":"now","updatedAt":"now","scene":{"mediaType":"application/vnd.inklet.scene+json;version=1","version":1,"data":{"version":1,"viewport":{"width":720,"height":752},"background":"#ffffff","elements":[]}},"renditions":[{"id":"rendition","format":"png","mediaType":"image/png","width":720,"height":752,"state":"ready","url":"https://images.example/frame.png","expiresAt":"later","updatedAt":"now"}]}"##.utf8)
             var json = try #require(JSONSerialization.jsonObject(with: template) as? [String: Any])
             var renditions = try #require(json["renditions"] as? [[String: Any]])
             renditions[0]["width"] = profile.width * 2

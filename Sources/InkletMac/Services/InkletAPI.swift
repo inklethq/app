@@ -168,103 +168,16 @@ actor InkletAPI {
                              json: ["pushId": pushID])
     }
 
-    // MARK: - Raw items
+    // MARK: - Contents (`/api/app/v1`)
 
-    func rawItems(page: Int = 1, limit: Int = 50) async throws -> RawItemsPageDTO {
-        try await authed("api/raw-items?page=\(page)&limit=\(min(max(limit, 1), 50))")
-    }
-
-    func rawItem(_ id: String) async throws -> RawItemDTO {
-        try await authed("api/raw-items/\(id)")
-    }
-
-    // MARK: - Upload
-
-    struct Attachment: Sendable {
-        var filename: String
-        var contentType: String
-        var data: Data
-
-        var isImage: Bool { contentType.hasPrefix("image/") }
-    }
-
-    /// The three-step bundle upload: reserve the item and get presigned slots,
-    /// PUT the bytes to S3, then confirm so the backend starts processing.
-    @discardableResult
-    func uploadBundle(mainText: String,
-                      files: [Attachment] = [],
-                      links: [String] = []) async throws -> ConfirmResponseDTO {
-        var attachments: [[String: Any]] = files.map {
-            ["filename": $0.filename, "contentType": $0.contentType, "sizeBytes": $0.data.count]
+    /// One page of the account's Contents, newest first. This is what
+    /// Knowledge shows; uploads from every client land here.
+    func contents(cursor: String? = nil, limit: Int = 50) async throws -> ContentPageDTO {
+        var path = "api/app/v1/contents?limit=\(min(max(limit, 1), 50))"
+        if let cursor, let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
+            path += "&cursor=\(encoded)"
         }
-        attachments.append(contentsOf: links.map { ["type": "link", "url": $0] })
-
-        let body: [String: Any] = [
-            "type": "PORTAL_UPLOAD_BUNDLE",
-            "mainText": mainText,
-            "attachments": attachments,
-        ]
-        let reserved: UploadResponseDTO = try await authed(
-            "api/raw-items/upload", method: "POST", jsonObject: body)
-
-        for ticket in reserved.attachments ?? [] {
-            guard ticket.index < files.count else { continue }
-            let file = files[ticket.index]
-            try await postToStorage(url: ticket.url, fields: ticket.fields,
-                                    filename: file.filename, data: file.data)
-        }
-
-        let confirmed: ConfirmResponseDTO = try await authed(
-            "api/raw-items/\(reserved.itemId)/confirm", method: "POST")
-        if let failed = confirmed.failed, !failed.isEmpty {
-            throw APIError.http(422, "Attachment \(failed.map { String($0 + 1) }.joined(separator: ", ")) didn't upload")
-        }
-        return confirmed
-    }
-
-    /// Generates a software-only Presentation. The host model downloads and
-    /// publishes the image only if the initiating account is still signed in.
-    ///
-    /// This mirrors `@inklethq/sdk` through the JWT-authenticated `/api/app/v1`
-    /// mount. No registered Display is required and no device queue is touched.
-    @discardableResult
-    func generatePresentation(
-        mainText: String,
-        files: [Attachment] = [],
-        links: [String] = [],
-        preset: String = "macos-widget-large"
-    ) async throws -> GeneratedPresentationDTO {
-        var assets: [PresentationAsset] = []
-        if !mainText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { assets.append(.text(mainText)) }
-        assets += files.map { .binary(filename: $0.filename, contentType: $0.contentType, data: $0.data) }
-        assets += links.map { .link($0) }
-        let client = TargetlessClient { [self] path, method, body, headers in
-            try await virtualDisplayRequest(path, method: method, body: body, headers: headers)
-        }
-        let size: (Int, Int)
-        switch preset {
-        case "macos-widget-small": size = (340, 340)
-        case "macos-widget-medium": size = (720, 340)
-        default: size = (720, 752)
-        }
-        return try await client.generate(assets: assets, requestID: UUID(), width: size.0, height: size.1)
-    }
-
-    /// Sends one image straight to a display, bypassing the knowledge pipeline.
-    /// The backend's custom-push route only accepts `image/*`.
-    @discardableResult
-    func customPush(deviceID: String, image: Attachment, title: String) async throws -> String {
-        let ticket: CustomPushTicketDTO = try await authed(
-            "api/devices/\(deviceID)/custom-push/upload", method: "POST",
-            jsonObject: ["contentType": image.contentType, "sizeBytes": image.data.count])
-
-        try await postToStorage(url: ticket.url, fields: ticket.fields,
-                                filename: image.filename, data: image.data)
-
-        let confirmed: CustomPushConfirmDTO = try await authed(
-            "api/devices/\(deviceID)/custom-push/confirm", method: "POST",
-            jsonObject: ["fileId": ticket.fileId, "title": title])
-        return confirmed.pushId
+        return try await authed(path)
     }
 
     /// Downloads a presigned asset. Not routed through the authed helpers — S3
@@ -283,42 +196,6 @@ actor InkletAPI {
     }
 
     // MARK: - Plumbing
-
-    private func postToStorage(url: String, fields: [String: String],
-                               filename: String, data: Data) async throws {
-        guard let endpoint = URL(string: url) else { throw APIError.network }
-
-        let boundary = "inklet-\(UUID().uuidString)"
-        var body = Data()
-        func append(_ string: String) { body.append(Data(string.utf8)) }
-
-        for (key, value) in fields {
-            append("--\(boundary)\r\n")
-            append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n")
-            append("\(value)\r\n")
-        }
-        append("--\(boundary)\r\n")
-        append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n")
-        append("Content-Type: application/octet-stream\r\n\r\n")
-        body.append(data)
-        append("\r\n--\(boundary)--\r\n")
-
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body
-
-        let status: Int
-        do {
-            let (_, response) = try await session.data(for: request)
-            status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        } catch {
-            throw APIError.network
-        }
-        guard (200...299).contains(status) else {
-            throw APIError.http(status, "Upload rejected by storage")
-        }
-    }
 
     private func authed<T: Decodable>(_ path: String,
                                       base: URL? = nil,
@@ -345,11 +222,22 @@ actor InkletAPI {
         _ = try await authedData(path, method: method, json: json, headers: headers)
     }
 
+    /// Transport for `TargetlessClient` and `VirtualDisplayController`. Errors
+    /// keep the backend's `code` and `details`, which the composer branches on
+    /// (`no_compatible_display`, `asset_not_uploaded`).
     func virtualDisplayRequest(_ path: String, method: String, body: Data?, headers: [String: String] = [:]) async throws -> Data {
         let object = try body.map { try JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-        do { return try await authedData(path, method: method, jsonObject: object ?? nil, headers: headers) }
-        catch APIError.noPush { throw PresentationHTTPError(status: 404, message: "This display or presentation is unavailable. Refresh and try again.") }
-        catch APIError.http(let code, let message) { throw PresentationHTTPError(status: code, message: message ?? "The request failed (\(code)).") }
+        let (data, status) = try await authedResponse(path, method: method, jsonObject: object ?? nil, headers: headers)
+        switch status {
+        case 200...299: return data
+        case 401: throw APIError.sessionExpired
+        default:
+            let envelope = serverError(data)
+            let fallback = status == 404
+                ? "This display or presentation is unavailable. Refresh and try again."
+                : "The request failed (\(status))."
+            throw PresentationHTTPError(status: status, message: envelope.message ?? fallback, code: envelope.code, details: envelope.details)
+        }
     }
 
     private func authedData(_ path: String,
@@ -358,6 +246,18 @@ actor InkletAPI {
                             json: [String: String]? = nil,
                             jsonObject: [String: Any]? = nil,
                             headers: [String: String] = [:]) async throws -> Data {
+        let (data, status) = try await authedResponse(path, base: base, method: method, json: json, jsonObject: jsonObject, headers: headers)
+        return try validate(data, status)
+    }
+
+    /// The authenticated round trip with one 401 refresh, returning the raw
+    /// status so callers can map errors their own way.
+    private func authedResponse(_ path: String,
+                                base: URL? = nil,
+                                method: String,
+                                json: [String: String]? = nil,
+                                jsonObject: [String: Any]? = nil,
+                                headers: [String: String] = [:]) async throws -> (Data, Int) {
         loadStoredTokensIfNeeded()
         guard let current = tokens else { throw APIError.notAuthenticated }
 
@@ -375,12 +275,11 @@ actor InkletAPI {
                                                headers: headers)
         if status == 401 {
             let refreshed = try await refreshTokens()
-            let (retryData, retryStatus) = try await perform(path, base: base, method: method,
-                                                             body: body, accessToken: refreshed.accessToken,
-                                                             headers: headers)
-            return try validate(retryData, retryStatus)
+            return try await perform(path, base: base, method: method,
+                                     body: body, accessToken: refreshed.accessToken,
+                                     headers: headers)
         }
-        return try validate(data, status)
+        return (data, status)
     }
 
     private func validate(_ data: Data, _ status: Int) throws -> Data {
@@ -493,6 +392,22 @@ actor InkletAPI {
     }
 
     /// Supports both the legacy `{"error":"..."}` and SDK-style envelope.
+    private struct ServerError { var code: String?; var message: String?; var details: [String: JSONValue]? }
+
+    /// The `/api/sdk/v1` and `/api/app/v1` error envelope, `{ "error": { code, message, details } }`,
+    /// with the legacy `{ "error": "…" }` shape as a fallback.
+    private func serverError(_ data: Data) -> ServerError {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return ServerError() }
+        if let nested = object["error"] as? [String: Any] {
+            var details: [String: JSONValue]?
+            if let raw = nested["details"] as? [String: Any], let encoded = try? JSONSerialization.data(withJSONObject: raw) {
+                details = try? JSONDecoder().decode([String: JSONValue].self, from: encoded)
+            }
+            return ServerError(code: nested["code"] as? String, message: nested["message"] as? String, details: details)
+        }
+        return ServerError(code: object["code"] as? String, message: (object["error"] as? String) ?? (object["message"] as? String))
+    }
+
     private func serverMessage(_ data: Data) -> String? {
         guard let object = try? JSONSerialization.jsonObject(with: data),
               let body = object as? [String: Any] else { return nil }

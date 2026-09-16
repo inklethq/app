@@ -21,7 +21,6 @@ struct KnowledgeView: View {
         .navigationTitle("Knowledge")
         // Titles live in each item's content blob, which the list endpoint
         // doesn't return; opening this page resolves the rest of them.
-        .task { model.loadMoreKnowledgeTitles() }
     }
 
     private var masthead: some View {

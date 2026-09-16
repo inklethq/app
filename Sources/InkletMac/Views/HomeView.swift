@@ -19,6 +19,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 26) {
                 greeting
                 quickSend
+                if !model.runs.isEmpty { runs }
                 activity
                 displays(columns: columns)
             }
@@ -41,6 +42,52 @@ struct HomeView: View {
                 .font(.brand(40))
                 .foregroundStyle(Ink.text)
         }
+    }
+
+    /// What the composer sent and is still being worked on. Each row is one
+    /// Analysis: its title, where it is going, and the agent's latest step.
+    /// Finished rows linger for a moment, then leave on their own.
+    private var runs: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(model.runs) { run in
+                HStack(spacing: 12) {
+                    if run.isFinished {
+                        Image(systemName: run.state == "failed" ? "exclamationmark.triangle" : "checkmark.circle")
+                            .font(.system(size: 13))
+                            .foregroundStyle(run.state == "failed" ? Ink.danger : Ink.online)
+                            .frame(width: 16)
+                    } else {
+                        ProgressView().controlSize(.small).frame(width: 16)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(run.title)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Ink.text)
+                            .lineLimit(1)
+                        Text(run.statusText)
+                            .font(.system(size: 12))
+                            .foregroundStyle(run.state == "failed" ? Ink.danger : Ink.secondary)
+                            .lineLimit(1)
+                            .contentTransition(.opacity)
+                    }
+                    Spacer(minLength: 8)
+                    Button {
+                        model.dismissRun(run.id)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Ink.muted)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Stop following this")
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Ink.card, in: .rect(cornerRadius: Ink.controlCorner))
+                .overlay { RoundedRectangle(cornerRadius: Ink.controlCorner).strokeBorder(Ink.border) }
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: model.runs)
     }
 
     /// Ink-black CTA, tappable edge to edge — same shape as the iOS quick send card.

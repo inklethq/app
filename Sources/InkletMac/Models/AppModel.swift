@@ -47,7 +47,6 @@ final class AppModel {
 
     private var session: Session?
     private var accountGeneration = UUID()
-    private var knowledgeDetailTasks: Set<String> = []
 
     func attach(session: Session) {
         self.session = session
@@ -86,7 +85,9 @@ final class AppModel {
         activityByDay = [:]
         previews = [:]
         previewTasks = []
-        knowledgeDetailTasks = []
+        runTasks.values.forEach { $0.cancel() }
+        runTasks = [:]
+        runs = []
         loadError = nil
         isLoading = true
     }
@@ -129,29 +130,28 @@ final class AppModel {
         }
     }
 
-    /// Pulls enough pages to cover the heatmap window, then fills in titles for
-    /// the rows the list actually shows.
+    /// Pulls enough pages of Contents to cover the heatmap window. The list
+    /// carries titles and Assets, so nothing has to be fetched per row.
     private func loadKnowledge() async {
         let expectedGeneration = accountGeneration
         let window = Calendar.current.date(byAdding: .day, value: -7 * 26, to: .now) ?? .now
         var collected: [KnowledgeItem] = []
         var seenIDs: Set<String> = []
-        var page = 1
+        var cursor: String?
 
         do {
             while true {
                 try Task.checkCancellation()
-                let result = try await InkletAPI.shared.rawItems(page: page, limit: 50)
+                let page = try await InkletAPI.shared.contents(cursor: cursor, limit: 50)
                 guard accountGeneration == expectedGeneration else { return }
-                let newItems = result.items.filter { seenIDs.insert($0.id).inserted }
+                let fresh = page.items.filter { seenIDs.insert($0.id).inserted }
                 // A repeated page must not loop forever or publish an incomplete
                 // season. Retain the previous widget snapshot on this failure.
-                if !result.items.isEmpty && newItems.isEmpty { throw APIError.decoding }
-                collected.append(contentsOf: newItems.map(KnowledgeItem.init(dto:)))
-                if result.items.count < 50 { break }
-                if let total = result.total, collected.count >= total { break }
+                if !page.items.isEmpty && fresh.isEmpty { throw APIError.decoding }
+                collected.append(contentsOf: fresh.map(KnowledgeItem.init(dto:)))
+                guard page.hasMore == true, let next = page.nextCursor else { break }
                 if let oldest = collected.last?.createdAt, oldest < window { break }
-                page += 1
+                cursor = next
             }
         } catch {
             guard accountGeneration == expectedGeneration else { return }
@@ -160,19 +160,8 @@ final class AppModel {
         }
 
         guard accountGeneration == expectedGeneration, session?.user != nil else { return }
-        // Keep whatever titles a previous pass already resolved.
-        let existing = Dictionary(knowledge.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        knowledge = collected.map { item in
-            guard let known = existing[item.id], known.title != nil else { return item }
-            var merged = item
-            merged.title = known.title
-            merged.detail = known.detail
-            merged.kind = known.kind
-            return merged
-        }
-
+        knowledge = collected
         rebuildActivity()
-        hydrateTitles(limit: 40)
     }
 
     private func rebuildActivity() {
@@ -191,47 +180,6 @@ final class AppModel {
                 loadError = "Couldn't update the Activity widget."
             }
         }
-    }
-
-    /// The list endpoint selects columns and leaves `content` out, so a title
-    /// needs a per-item fetch. Bounded and de-duplicated: only the rows near the
-    /// top of the list, only once each.
-    private func hydrateTitles(limit: Int) {
-        let pending = knowledge.prefix(limit).filter { $0.title == nil && !knowledgeDetailTasks.contains($0.id) }
-        guard !pending.isEmpty else { return }
-        pending.forEach { knowledgeDetailTasks.insert($0.id) }
-
-        Task { @MainActor in
-            await withTaskGroup(of: (String, BundleContentDTO?).self) { group in
-                var iterator = pending.makeIterator()
-
-                func addNext() {
-                    guard let item = iterator.next() else { return }
-                    group.addTask {
-                        guard let dto = try? await InkletAPI.shared.rawItem(item.id),
-                              let raw = dto.content?.data(using: .utf8),
-                              let content = try? JSONDecoder().decode(BundleContentDTO.self, from: raw)
-                        else { return (item.id, nil) }
-                        return (item.id, content)
-                    }
-                }
-
-                // Six in flight at a time: fills the visible list quickly without
-                // opening forty sockets at launch. Each completion starts one more.
-                for _ in 0..<min(6, pending.count) { addNext() }
-
-                while let (id, content) = await group.next() {
-                    if let content, let index = knowledge.firstIndex(where: { $0.id == id }) {
-                        knowledge[index].apply(content: content)
-                    }
-                    addNext()
-                }
-            }
-        }
-    }
-
-    func loadMoreKnowledgeTitles() {
-        hydrateTitles(limit: knowledge.count)
     }
 
     // MARK: - Device detail
@@ -325,22 +273,153 @@ final class AppModel {
 
     // MARK: - Sending
 
-    /// Auto lets the existing pipeline decide where the content lands.
-    func send(text: String, files: [InkletAPI.Attachment], links: [String]) async throws {
-        try await InkletAPI.shared.uploadBundle(mainText: text, files: files, links: links)
-        await loadKnowledge()
+    /// Where a draft goes. `agent` lets inklet pick compatible Displays.
+    enum ComposeTarget: Hashable {
+        case agent
+        case hardware(String)
+        case virtual(UUID)
     }
 
-    func sendDirect(text: String, image: Data?, to displayID: UUID, requestID: UUID, baseRevision: Int64) async throws {
+    /// An Analysis the composer started; Home follows it until it settles.
+    struct ComposeRun: Identifiable, Hashable {
+        let id: String
+        let title: String
+        let destination: String
+        var state: String
+        var latest: String?
+        var outcome: String?
+        var failure: String?
+        let startedAt = Date()
+
+        var isFinished: Bool { state == "completed" || state == "failed" }
+        var statusText: String {
+            if state == "failed" { return failure ?? "Failed" }
+            if state == "completed" { return outcome == "no_change" ? "Nothing new to show" : "On its way to \(destination)" }
+            return latest ?? (state == "queued" ? "Waiting for inklet…" : "Working…")
+        }
+    }
+
+    var runs: [ComposeRun] = []
+    private var runTasks: [String: Task<Void, Never>] = [:]
+
+    private var targetlessClient: TargetlessClient {
+        TargetlessClient { path, method, body, headers in
+            try await InkletAPI.shared.virtualDisplayRequest(path, method: method, body: body, headers: headers)
+        }
+    }
+
+    /// Upload, then the action the user chose over it. Returns one line for
+    /// the composer to show as it closes; an AI run is followed on Home.
+    func compose(text: String, attachments: [PresentationAsset], action: ComposeAction,
+                 target: ComposeTarget, requestID: UUID) async throws -> String {
+        guard session?.user != nil else { throw APIError.notAuthenticated }
+        var assets: [PresentationAsset] = []
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !body.isEmpty { assets.append(.text(body)) }
+        assets += attachments
+
+        let spec: AnalysisTargetSpec
+        var deviceID: String?
+        switch target {
+        case .agent: spec = .agent
+        case .hardware(let id): spec = .display(id); deviceID = id
+        case .virtual: throw VirtualDisplayError.message("Virtual Displays publish their own frame.")
+        }
+
+        let outcome = try await targetlessClient.compose(assets: assets, action: action, target: spec, requestID: requestID)
+        await loadKnowledge()
+        guard action != .upload else { return "Saved to Knowledge" }
+        if outcome.refusal != nil { return "Saved — pair a display to show it on" }
+        guard let analysis = outcome.analysis else { return "Saved" }
+
+        let destination = deviceID.flatMap { device(withID: $0)?.displayName } ?? "a display inklet picks"
+        track(analysis, title: outcome.content.title ?? TargetlessClient.title(for: assets) ?? "Untitled", destination: destination, deviceID: deviceID)
+        return action == .asIs ? "Sending to \(destination)" : "inklet is working on it"
+    }
+
+    private func track(_ analysis: AnalysisDTO, title: String, destination: String, deviceID: String?) {
+        let runID = analysis.id
+        runs.removeAll { $0.id == runID }
+        runs.insert(ComposeRun(id: runID, title: title, destination: destination, state: analysis.state), at: 0)
+        let expected = accountGeneration
+        let client = targetlessClient
+        runTasks[runID]?.cancel()
+        // Built outside the Task so the sink captures `self` weakly on its own,
+        // rather than the Task's rebinding of it.
+        let sink: TargetlessClient.EventSink = { [weak self] event in
+            let line = event.displayText
+            Task { @MainActor in
+                self?.update(runID, generation: expected) { $0.latest = line; $0.state = "running" }
+            }
+        }
+        runTasks[runID] = Task { @MainActor [weak self] in
+            defer { self?.runTasks[runID] = nil }
+            do {
+                let done = try await client.follow(analysisID: runID, onEvent: sink)
+                guard let self, self.accountGeneration == expected else { return }
+                update(runID, generation: expected) {
+                    $0.state = done.state; $0.outcome = done.outcome; $0.failure = done.failure?.message
+                }
+                if let deviceID {
+                    await reloadDevice(deviceID)
+                    if let device = device(withID: deviceID) { await loadHistory(for: device) }
+                } else {
+                    await loadDevices()
+                }
+                await loadKnowledge()
+                try? await Task.sleep(for: .seconds(15))
+                guard accountGeneration == expected else { return }
+                runs.removeAll { $0.id == runID && $0.state == "completed" }
+            } catch {
+                guard let self, self.accountGeneration == expected else { return }
+                update(runID, generation: expected) {
+                    $0.state = "failed"
+                    $0.failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func update(_ id: String, generation: UUID, _ change: (inout ComposeRun) -> Void) {
+        guard accountGeneration == generation, let index = runs.firstIndex(where: { $0.id == id }) else { return }
+        change(&runs[index])
+    }
+
+    func dismissRun(_ id: String) {
+        runTasks[id]?.cancel()
+        runTasks[id] = nil
+        runs.removeAll { $0.id == id }
+    }
+
+    /// Virtual Displays publish a frame themselves, so the whole generate →
+    /// download → publish chain runs here and the composer waits on it.
+    func sendToVirtual(action: ComposeAction, text: String, image: PresentationAsset?, to displayID: UUID,
+                       requestID: UUID, baseRevision: Int64) async throws {
         guard session?.user != nil else { throw APIError.notAuthenticated }
         guard let display = virtualDisplays.displays.first(where: { $0.id == displayID }) else {
             throw VirtualDisplayError.message("This display is unavailable.")
         }
-        let png = try image.map { try VirtualDisplayRenderer.image($0, size: display.canvasSize) }
-            ?? VirtualDisplayRenderer.text(text, size: display.canvasSize)
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let assets: [PresentationAsset]
+        let mode: String
+        switch action {
+        case .asIs, .upload:
+            var imageData: Data?
+            if case .binary(_, _, let data)? = image { imageData = data }
+            let png = try imageData.map { try VirtualDisplayRenderer.image($0, size: display.canvasSize) }
+                ?? VirtualDisplayRenderer.text(body, size: display.canvasSize)
+            assets = [.binary(filename: "frame.png", contentType: "image/png", data: png)]
+            mode = "hardcode"
+        case .card, .cardHistory:
+            var list: [PresentationAsset] = []
+            if !body.isEmpty { list.append(.text(body)) }
+            if let image { list.append(image) }
+            assets = list
+            mode = action == .card ? "auto" : "history"
+        }
         guard await virtualDisplays.generateAndPublish(id: displayID, requestID: requestID, frameID: requestID,
-            baseRevision: baseRevision, assets: [.binary(filename: "frame.png", contentType: "image/png", data: png)],
-            mode: "hardcode", text: String(String.UnicodeScalarView(text.unicodeScalars.prefix(1000)))) else {
+            baseRevision: baseRevision, assets: assets, mode: mode,
+            text: String(String.UnicodeScalarView(body.unicodeScalars.prefix(1000)))) else {
             throw VirtualDisplayError.message(virtualDisplays.error ?? "Couldn't send to this display. Try again.")
         }
         await loadKnowledge()
@@ -348,14 +427,6 @@ final class AppModel {
 
     func reloadVirtualDisplay() {
         virtualDisplay = try? widgetStore.presentation()
-    }
-
-    /// Manual: put one image straight on a chosen display. The backend's
-    /// custom-push route accepts images only.
-    func sendDirect(image: InkletAPI.Attachment, to device: Device, title: String) async throws {
-        _ = try await InkletAPI.shared.customPush(deviceID: device.id, image: image, title: title)
-        await reloadDevice(device.id)
-        await loadHistory(for: device)
     }
 
     // MARK: - Errors
