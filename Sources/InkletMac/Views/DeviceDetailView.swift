@@ -191,7 +191,14 @@ struct DeviceDetailView: View {
                         .padding(.vertical, 28)
                 } else {
                     ForEach(Array(history.enumerated()), id: \.element.id) { index, push in
-                        HistoryRow(push: push, showsDivider: index < history.count - 1)
+                        HistoryRow(push: push, showsDivider: index < history.count - 1,
+                                   canShow: push.canShowAgain && !isAdvancing) { show(push) }
+                    }
+                    if let floor = model.historyFloor(for: device) {
+                        Text("Your plan shows history since \(floor.formatted(date: .abbreviated, time: .omitted)). Upgrade to see all of it.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Ink.muted)
+                            .padding(.top, 10)
                     }
                 }
             }
@@ -226,6 +233,25 @@ struct DeviceDetailView: View {
         .background(Ink.bg)
     }
 
+    private func show(_ push: Push) {
+        guard !isAdvancing else { return }
+        isAdvancing = true
+        withAnimation { queueNotice = "Showing “\(push.title)”…" }
+
+        Task {
+            defer { isAdvancing = false }
+            do {
+                try await model.show(push, on: device)
+                withAnimation { queueNotice = "Sent — the display refreshes on its next check-in" }
+            } catch {
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                withAnimation { queueNotice = message }
+            }
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation { queueNotice = nil }
+        }
+    }
+
     private func showNext() {
         guard !isAdvancing else { return }
         isAdvancing = true
@@ -234,10 +260,12 @@ struct DeviceDetailView: View {
         Task {
             defer { isAdvancing = false }
             do {
-                try await model.showNext(device)
-                withAnimation { queueNotice = "Sent — the display refreshes on its next check-in" }
-            } catch APIError.noPush {
-                withAnimation { queueNotice = "Nothing queued to advance to" }
+                let changed = try await model.showNext(device)
+                withAnimation {
+                    queueNotice = changed
+                        ? "Sent — the display refreshes on its next check-in"
+                        : "Nothing queued to advance to"
+                }
             } catch {
                 let message = (error as? APIError)?.errorDescription ?? error.localizedDescription
                 withAnimation { queueNotice = message }
@@ -251,6 +279,14 @@ struct DeviceDetailView: View {
 private struct HistoryRow: View {
     let push: Push
     let showsDivider: Bool
+    var canShow = false
+    var onShow: () -> Void = {}
+    @State private var isHovering = false
+
+    private var subtitle: String {
+        if let summary = push.summary { return summary }
+        return push.mode == "direct" ? "Shown as-is" : "Laid out by inklet"
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -260,12 +296,20 @@ private struct HistoryRow: View {
                         .font(.system(size: 14))
                         .foregroundStyle(Ink.text)
                         .lineLimit(1)
-                    Text(push.summary ?? " ")
+                    Text(subtitle)
                         .font(.system(size: 12))
-                        .foregroundStyle(Ink.muted)
+                        .foregroundStyle(push.status == .failed ? Ink.danger : Ink.muted)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
+                if canShow {
+                    Button("Show", systemImage: "arrow.uturn.backward") { onShow() }
+                        .labelStyle(.titleOnly)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .opacity(isHovering ? 1 : 0)
+                        .help("Put this back on the display")
+                }
                 Text(push.status.label)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(push.status.isTerminal ? Ink.muted : Ink.text)
@@ -278,6 +322,11 @@ private struct HistoryRow: View {
                     .frame(width: 62, alignment: .trailing)
             }
             .frame(height: 46)
+            .contentShape(Rectangle())
+            .onHover { isHovering = $0 }
+            .contextMenu {
+                if canShow { Button("Show on Display") { onShow() } }
+            }
             if showsDivider {
                 Rectangle().fill(Ink.cardRule).frame(height: 1)
             }

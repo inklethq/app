@@ -131,20 +131,23 @@ actor InkletAPI {
         try await authed("api/devices/\(id)")
     }
 
-    /// Preview image for one specific push. Unlike `GET .../push`, this is a pure
-    /// read — the unqualified endpoint promotes the top queued push to PUBLISHED
-    /// as a side effect, which is right for the firmware and wrong for a preview.
-    func pushImage(deviceID: String, pushID: String) async throws -> PushImageDTO {
-        try await authed("api/devices/\(deviceID)/push/\(pushID)?format=png")
-    }
-
-    func pushes(deviceID: String, limit: Int = 30, cursor: String? = nil) async throws -> PushPageDTO {
-        var path = "api/devices/\(deviceID)/pushes?limit=\(min(max(limit, 1), 50))"
-        if let cursor, !cursor.isEmpty {
-            let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? cursor
+    /// `GET /api/app/v1/presentations?displayId=`: everything that has ever
+    /// been on this panel — queued, published, confirmed, expired — newest
+    /// first. The Free plan sees the last 7 days; `historyWindowStart` says so.
+    func displayHistory(displayID: String, limit: Int = 30, cursor: String? = nil) async throws -> PresentationPageDTO {
+        var path = "api/app/v1/presentations?displayId=\(displayID)&limit=\(min(max(limit, 1), 50))"
+        if let cursor, let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
             path += "&cursor=\(encoded)"
         }
         return try await authed(path)
+    }
+
+    /// `GET /api/app/v1/displays/{id}/current-presentation`: the Presentation the
+    /// panel last confirmed, with a fresh signed image URL. A pure read — the
+    /// legacy `/push` route promoted the queue as a side effect.
+    func currentPresentation(displayID: String) async throws -> GeneratedPresentationDTO? {
+        let response: CurrentPresentationDTO = try await authed("api/app/v1/displays/\(displayID)/current-presentation?format=png")
+        return response.presentation
     }
 
     func setNickname(deviceID: String, nickname: String) async throws {
@@ -156,16 +159,18 @@ actor InkletAPI {
         try await authedVoid("api/devices/\(deviceID)/unbind", method: "POST")
     }
 
-    /// Advances the display to the next queued push. This is the write twin of
-    /// the read-only preview above, so it only runs on an explicit "Show Next".
-    @discardableResult
-    func advanceQueue(deviceID: String) async throws -> PushImageDTO {
-        try await authed("api/devices/\(deviceID)/push/refresh", method: "POST")
+    /// `POST /api/app/v1/displays/{id}/advance`: show the next queued item.
+    /// Returns false on an empty queue, which is not an error. No AI, no quota.
+    func advanceDisplay(displayID: String) async throws -> Bool {
+        let result: DisplayAdvanceDTO = try await authed("api/app/v1/displays/\(displayID)/advance", method: "POST")
+        return result.changed ?? false
     }
 
-    func setCurrentPush(deviceID: String, pushID: String) async throws {
-        try await authedVoid("api/devices/\(deviceID)/current-push", method: "POST",
-                             json: ["pushId": pushID])
+    /// `POST /api/app/v1/displays/{id}/current`: put one of this panel's own
+    /// rendered Presentations back on screen, including an expired one.
+    func setCurrentPresentation(displayID: String, presentationID: String) async throws {
+        try await authedVoid("api/app/v1/displays/\(displayID)/current", method: "POST",
+                             json: ["presentationId": presentationID])
     }
 
     // MARK: - Contents (`/api/app/v1`)

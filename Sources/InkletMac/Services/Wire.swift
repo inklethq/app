@@ -52,30 +52,6 @@ struct DeviceDTO: Codable, Sendable {
     var latestPushAt: String?
 }
 
-/// `GET /api/devices/{id}/push[/{pushId}]` — a presigned image URL plus the push
-/// it belongs to.
-struct PushImageDTO: Codable, Sendable {
-    var url: String
-    var pushId: String?
-    var status: String?
-    var changed: Bool?
-}
-
-struct PushItemDTO: Codable, Sendable {
-    var pushId: String
-    var title: String?
-    var summary: String?
-    var status: String?
-    var priority: Int?
-    var createdAt: String?
-}
-
-struct PushPageDTO: Codable, Sendable {
-    var items: [PushItemDTO]
-    var nextCursor: String?
-    var hasMore: Bool?
-}
-
 // MARK: - Time
 
 enum InkletTime {

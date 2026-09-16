@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum SettingsTab: String { case general, account, notifications, about }
+enum SettingsTab: String { case general, notifications, account, about }
 
 struct SettingsView: View {
     @AppStorage("settingsTab") private var selection: SettingsTab = .general
@@ -9,10 +9,10 @@ struct SettingsView: View {
         TabView(selection: $selection) {
             GeneralSettings()
                 .tabItem { Label("General", systemImage: "gearshape") }.tag(SettingsTab.general)
-            AccountSettings()
-                .tabItem { Label("Account", systemImage: "person.crop.circle") }.tag(SettingsTab.account)
             NotificationSettings()
                 .tabItem { Label("Notifications", systemImage: "bell") }.tag(SettingsTab.notifications)
+            AccountSettings()
+                .tabItem { Label("Account", systemImage: "person.crop.circle") }.tag(SettingsTab.account)
             AboutSettings()
                 .tabItem { Label("About", systemImage: "info.circle") }.tag(SettingsTab.about)
         }
@@ -28,10 +28,11 @@ struct SettingsView: View {
 }
 
 private struct GeneralSettings: View {
-    @AppStorage("launchAtLogin") private var launchAtLogin = true
-    @AppStorage("showInDock") private var showInDock = false
-    @AppStorage("showWeather") private var showWeather = true
+    @AppStorage(SystemSettings.showInDockKey) private var showInDock = true
+    @AppStorage(SystemSettings.showWeatherKey) private var showWeather = true
     @ObservedObject private var updater = AppUpdater.shared
+    private let loginItem = LaunchAtLogin.shared
+    private let weather = WeatherService.shared
 
     private var lastCheckDescription: String {
         guard updater.isAvailable else { return "Run a packaged build to check for updates" }
@@ -39,17 +40,42 @@ private struct GeneralSettings: View {
         return "Last checked " + date.formatted(.relative(presentation: .named))
     }
 
+    private var loginItemSubtitle: String {
+        if !loginItem.isAvailable { return "Available in the packaged app only" }
+        if let error = loginItem.error { return error }
+        if loginItem.requiresApproval { return "Waiting for approval in System Settings → Login Items" }
+        return "Open inklet Portal when you log in"
+    }
+
+    private var weatherSubtitle: String {
+        if !showWeather { return "Uses your approximate location, via Open-Meteo" }
+        if weather.isDenied { return "Location access is off — allow it in System Settings" }
+        if let problem = weather.problem { return problem }
+        if let current = weather.current { return "\(current.summary), \(current.temperature) right now" }
+        return "Uses your approximate location, via Open-Meteo"
+    }
+
     var body: some View {
         SettingsPage(tab: .general) {
             SettingsGroup("Startup") {
-                SettingRow(title: "Launch at login",
-                           subtitle: "Start in the menu bar when you log in") {
-                    Toggle("", isOn: $launchAtLogin).labelsHidden()
+                SettingRow(title: "Launch at login", subtitle: loginItemSubtitle) {
+                    HStack(spacing: 8) {
+                        if loginItem.requiresApproval {
+                            Button("Open Settings") { loginItem.openSystemSettings() }
+                                .controlSize(.small)
+                        }
+                        Toggle("", isOn: Binding(
+                            get: { loginItem.isEnabled || loginItem.requiresApproval },
+                            set: { loginItem.set($0) }))
+                            .labelsHidden()
+                            .disabled(!loginItem.isAvailable)
+                    }
                 }
                 SettingRow(title: "Show in Dock",
-                           subtitle: "With this off, inklet lives in the menu bar only",
+                           subtitle: "With this off, inklet Portal lives in the menu bar only",
                            showsDivider: false) {
                     Toggle("", isOn: $showInDock).labelsHidden()
+                        .onChange(of: showInDock) { _, value in DockVisibility.apply(showInDock: value) }
                 }
             }
 
@@ -84,10 +110,15 @@ private struct GeneralSettings: View {
                            subtitle: "Opens the composer from any app · ⌫ restores the default") {
                     ShortcutRecorder()
                 }
-                SettingRow(title: "Weather on Home",
-                           subtitle: "Uses your location, via Apple Weather",
-                           showsDivider: false) {
-                    Toggle("", isOn: $showWeather).labelsHidden()
+                SettingRow(title: "Weather on Home", subtitle: weatherSubtitle, showsDivider: false) {
+                    HStack(spacing: 8) {
+                        if showWeather, weather.isDenied {
+                            Button("Open Settings") { weather.openSystemSettings() }
+                                .controlSize(.small)
+                        }
+                        Toggle("", isOn: $showWeather).labelsHidden()
+                            .onChange(of: showWeather) { _, value in if value { weather.refresh() } }
+                    }
                 }
             }
         }
@@ -152,28 +183,62 @@ private struct AccountSettings: View {
 }
 
 private struct NotificationSettings: View {
-    @AppStorage("notifyDelivered") private var delivered = true
-    @AppStorage("notifyFailed") private var failed = true
-    @AppStorage("notifyOffline") private var offline = false
+    @AppStorage(SystemSettings.notifyDeliveredKey) private var delivered = true
+    @AppStorage(SystemSettings.notifyFailedKey) private var failed = true
+    @AppStorage(SystemSettings.notifyOfflineKey) private var offline = false
+    private let notifier = Notifier.shared
+
+    private var permissionSubtitle: String {
+        if !notifier.isAvailable { return "Available in the packaged app only" }
+        switch notifier.authorization {
+        case .authorized, .provisional: return "Allowed in System Settings"
+        case .denied: return "Turned off for inklet Portal in System Settings"
+        default: return "You'll be asked the first time a notification is turned on"
+        }
+    }
+
+    /// Turning any alert on asks the system once; a denied answer is shown
+    /// next to the toggles rather than failing silently later.
+    private func ask(if enabled: Bool) {
+        guard enabled, notifier.authorization == .notDetermined else { return }
+        Task { await notifier.requestAuthorization() }
+    }
 
     var body: some View {
         SettingsPage(tab: .notifications) {
-            SettingsGroup("Alerts") {
-                SettingRow(title: "Content delivered",
-                           subtitle: "When a push reaches a display's queue") {
-                    Toggle("", isOn: $delivered).labelsHidden()
-                }
-                SettingRow(title: "Push failed",
-                           subtitle: "Retry straight from the notification") {
-                    Toggle("", isOn: $failed).labelsHidden()
-                }
-                SettingRow(title: "Display went offline",
-                           subtitle: "Needs server-side events — not wired up yet",
-                           showsDivider: false) {
-                    Toggle("", isOn: $offline).labelsHidden()
+            SettingsGroup("Permission") {
+                SettingRow(title: "System notifications", subtitle: permissionSubtitle, showsDivider: false) {
+                    if notifier.authorization == .denied {
+                        Button("Open Settings") { notifier.openSystemSettings() }
+                            .controlSize(.small)
+                    } else if notifier.authorization == .notDetermined, notifier.isAvailable {
+                        Button("Allow…") { Task { await notifier.requestAuthorization() } }
+                            .controlSize(.small)
+                    }
                 }
             }
+
+            SettingsGroup("Alerts") {
+                SettingRow(title: "Content delivered",
+                           subtitle: "When a card is on its way to a display") {
+                    Toggle("", isOn: $delivered).labelsHidden()
+                        .onChange(of: delivered) { _, value in ask(if: value) }
+                }
+                SettingRow(title: "Send failed",
+                           subtitle: "When inklet couldn't finish a card") {
+                    Toggle("", isOn: $failed).labelsHidden()
+                        .onChange(of: failed) { _, value in ask(if: value) }
+                }
+                SettingRow(title: "Display went offline",
+                           subtitle: "When a display that was online stops checking in",
+                           showsDivider: false) {
+                    Toggle("", isOn: $offline).labelsHidden()
+                        .onChange(of: offline) { _, value in ask(if: value) }
+                }
+            }
+            .disabled(!notifier.isAvailable)
         }
+        .task { await notifier.refreshAuthorization() }
     }
 }
 
@@ -187,7 +252,7 @@ private struct AboutSettings: View {
                 Image(nsImage: NSApplication.shared.applicationIconImage)
                     .resizable().scaledToFit().frame(width: 96, height: 96)
                     .padding(.bottom, 4)
-                Text("inklet").font(.system(size: 24, weight: .bold))
+                Text("inklet Portal").font(.system(size: 24, weight: .bold))
                 Text("Version \(version) (\(build))")
                     .font(.body).foregroundStyle(.secondary).textSelection(.enabled)
                 VStack(spacing: 24) {
@@ -218,7 +283,7 @@ struct AboutSettingsCommand: View {
     @Environment(\.openSettings) private var openSettings
     @AppStorage("settingsTab") private var selection: SettingsTab = .general
     var body: some View {
-        Button("About inklet") {
+        Button("About inklet Portal") {
             selection = .about
             openSettings()
         }

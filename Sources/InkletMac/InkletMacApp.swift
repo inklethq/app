@@ -38,7 +38,7 @@ struct InkletMacApp: App {
             // closing it would otherwise leave no way back into the app. This
             // reopens the one window (or focuses it if it's already up).
             CommandGroup(after: .newItem) {
-                Button("inklet Window") { openWindow(id: Self.mainWindowID) }
+                Button("inklet Portal Window") { openWindow(id: Self.mainWindowID) }
                     .keyboardShortcut("n")
 
                 Button("Create Presentation…") { model.startComposing() }
@@ -54,6 +54,19 @@ struct InkletMacApp: App {
                 Link("inklet Help", destination: URL(string: "https://iminklet.com")!)
             }
         }
+
+        // Always present: with "Show in Dock" off this is the only way back in.
+        MenuBarExtra("inklet Portal", systemImage: "square.and.pencil") {
+            Button("Open inklet Portal") { openWindow(id: Self.mainWindowID); NSApp.activate() }
+            Button("Create Presentation…") { model.startComposing() }
+                .disabled(session.user == nil)
+            Divider()
+            CheckForUpdatesCommand()
+            SettingsLink { Text("Settings…") }
+            Divider()
+            Button("Quit inklet Portal") { NSApp.terminate(nil) }
+        }
+        .menuBarExtraStyle(.menu)
 
         Settings {
             SettingsView()
@@ -86,7 +99,10 @@ private struct AppGate: View {
                 RootView()
             }
         }
-        .task { await session.restore() }
+        .task {
+            DockVisibility.apply(showInDock: UserDefaults.standard.object(forKey: SystemSettings.showInDockKey) as? Bool ?? true)
+            await session.restore()
+        }
         .onChange(of: session.state) { _, state in
             switch state {
             case .signedIn(let user):

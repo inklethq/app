@@ -32,15 +32,52 @@ struct HomeView: View {
         .navigationTitle("Home")
     }
 
+    @AppStorage(SystemSettings.showWeatherKey) private var showWeather = true
+    private let weather = WeatherService.shared
+
     private var greeting: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
-                .font(.system(size: 13, weight: .medium))
-                .tracking(1.6)
-                .foregroundStyle(Ink.muted)
-            Text("Hi, \(model.account.username)!")
-                .font(.brand(40))
-                .foregroundStyle(Ink.text)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
+                    .font(.system(size: 13, weight: .medium))
+                    .tracking(1.6)
+                    .foregroundStyle(Ink.muted)
+                Text("Hi, \(model.account.username)!")
+                    .font(.brand(40))
+                    .foregroundStyle(Ink.text)
+            }
+            Spacer(minLength: 12)
+            if showWeather { weatherChip }
+        }
+        .task(id: showWeather) { if showWeather { weather.refreshIfStale() } }
+    }
+
+    /// Current conditions for wherever the Mac is. Silent when there is nothing
+    /// to say yet; the reason lives under Settings → General.
+    @ViewBuilder
+    private var weatherChip: some View {
+        if let current = weather.current {
+            HStack(spacing: 8) {
+                Image(systemName: current.symbol)
+                    .font(.system(size: 15))
+                    .foregroundStyle(Ink.secondary)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(current.temperature)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Ink.text)
+                    Text(current.summary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Ink.muted)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Ink.card, in: .rect(cornerRadius: Ink.controlCorner))
+            .overlay { RoundedRectangle(cornerRadius: Ink.controlCorner).strokeBorder(Ink.border) }
+            .help("\(current.summary) · updated \(current.fetchedAt.formatted(date: .omitted, time: .shortened))")
+            .onTapGesture { weather.refresh() }
+        } else if weather.isLoading {
+            ProgressView().controlSize(.small).padding(.top, 10)
         }
     }
 

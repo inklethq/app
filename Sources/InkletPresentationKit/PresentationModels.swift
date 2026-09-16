@@ -103,6 +103,37 @@ nonisolated public struct PresentationProblemDTO: Codable, Sendable, Equatable {
     public var assetIndex: Int?
 }
 
+/// The rendered panel image of a Display Presentation. `url` is signed per
+/// response and expires; read the Presentation again for a fresh one.
+nonisolated public struct PresentationImageDTO: Codable, Sendable, Equatable {
+    public var url: String
+    public var format: String
+    public var width: Int
+    public var height: Int
+    public var expiresAt: String?
+    public var updatedAt: String?
+}
+
+nonisolated public struct PresentationPageDTO: Codable, Sendable {
+    public var items: [GeneratedPresentationDTO]
+    public var nextCursor: String?
+    public var hasMore: Bool?
+    /// The plan's history floor, when one is in force; rows before it are omitted.
+    public var historyWindowStart: String?
+}
+
+/// `GET /displays/{id}/current-presentation`: `presentation` is `null` when
+/// the panel has confirmed nothing yet.
+nonisolated public struct CurrentPresentationDTO: Codable, Sendable {
+    public var presentation: GeneratedPresentationDTO?
+}
+
+/// `POST /displays/{id}/advance`. `changed` is false on an empty queue, which
+/// is not an error.
+nonisolated public struct DisplayAdvanceDTO: Codable, Sendable {
+    public var changed: Bool?
+}
+
 nonisolated public struct GeneratedPresentationDTO: Codable, Sendable, Equatable, Identifiable {
     public var id: String
     public var displayId: String?
@@ -117,12 +148,18 @@ nonisolated public struct GeneratedPresentationDTO: Codable, Sendable, Equatable
     public var output: PresentationOutputDTO?
     public var scene: PresentationSceneDTO?
     public var renditions: [PresentationRenditionDTO]
+    /// Display Presentations only: the panel image. `nil` for targetless ones.
+    public var image: PresentationImageDTO?
     public var failure: PresentationProblemDTO?
     public var createdAt: String
     public var updatedAt: String
 
+    /// Display Presentations use the panel vocabulary (`queued`, `published`,
+    /// `confirmed`, `expired`); targetless ones `preparing` / `ready` / `failed`.
+    public var isDisplayPresentation: Bool { displayId != nil }
+
     private enum CodingKeys: String, CodingKey {
-        case id, displayId, analysisId, contentIds, mode, state, title, output, scene, renditions, failure, createdAt, updatedAt
+        case id, displayId, analysisId, contentIds, mode, state, title, output, scene, renditions, image, failure, createdAt, updatedAt
     }
 
     private struct ContentRef: Decodable { let id: String }
@@ -143,6 +180,7 @@ nonisolated public struct GeneratedPresentationDTO: Codable, Sendable, Equatable
         output = try container.decodeIfPresent(PresentationOutputDTO.self, forKey: .output)
         scene = try container.decodeIfPresent(PresentationSceneDTO.self, forKey: .scene)
         renditions = try container.decodeIfPresent([PresentationRenditionDTO].self, forKey: .renditions) ?? []
+        image = try container.decodeIfPresent(PresentationImageDTO.self, forKey: .image)
         failure = try container.decodeIfPresent(PresentationProblemDTO.self, forKey: .failure)
         createdAt = try container.decode(String.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt) ?? createdAt

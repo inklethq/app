@@ -36,15 +36,17 @@ struct Device: Identifiable, Hashable {
     }
 }
 
+/// One Presentation in a Display's history, built from the shared
+/// Presentation DTO (`GET /api/app/v1/presentations?displayId=`).
 struct Push: Identifiable, Hashable {
-    /// Backend status vocabulary (internal/iot/service.go), with the display
-    /// wording the other clients use.
+    /// The panel vocabulary of `Presentation.state`.
     enum Status: String, CaseIterable {
-        case preparing = "PREPARE"
-        case queued = "QUEUE"
-        case published = "PUBLISHED"
-        case confirmed = "CONFIRMED"
-        case expired = "EXPIRED"
+        case preparing
+        case queued
+        case published
+        case confirmed
+        case expired
+        case failed
 
         var label: String {
             switch self {
@@ -53,10 +55,11 @@ struct Push: Identifiable, Hashable {
             case .published: "Published"
             case .confirmed: "Confirmed"
             case .expired: "Expired"
+            case .failed: "Failed"
             }
         }
 
-        var isTerminal: Bool { self == .confirmed || self == .expired }
+        var isTerminal: Bool { self == .confirmed || self == .expired || self == .failed }
     }
 
     let id: String
@@ -64,15 +67,25 @@ struct Push: Identifiable, Hashable {
     var summary: String?
     var status: Status
     var createdAt: Date
+    var imageURL: URL?
+    /// `direct` means the picture went up untouched; `ai` means inklet laid it out.
+    var mode: String
 
-    init(dto: PushItemDTO) {
-        id = dto.pushId
+    /// `POST /displays/{id}/current` accepts a rendered Presentation of this
+    /// panel, including an expired one; the current one is already on screen.
+    var canShowAgain: Bool {
+        status == .expired || status == .queued
+    }
+
+    init(dto: GeneratedPresentationDTO) {
+        id = dto.id
         let rawTitle = dto.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         title = rawTitle.isEmpty ? "Untitled" : rawTitle
-        let rawSummary = dto.summary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        summary = rawSummary.isEmpty ? nil : rawSummary
-        status = Status(rawValue: dto.status ?? "") ?? .published
+        summary = dto.failure?.message
+        status = Status(rawValue: dto.state) ?? .published
         createdAt = InkletTime.parse(dto.createdAt) ?? .now
+        imageURL = dto.image.flatMap { URL(string: $0.url) }
+        mode = dto.mode
     }
 }
 
