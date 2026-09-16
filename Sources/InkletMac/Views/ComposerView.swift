@@ -4,25 +4,29 @@ import UniformTypeIdentifiers
 
 /// Contents of the HUD panel. Lives in `ComposerPanelController`'s window rather
 /// than a popover, so the file chooser and app switches don't dismiss it.
+///
+/// A draft is sent with an *action* (what to do with it) to a *target* (where
+/// it goes), the same two choices the web Portal's composer offers:
+///
+/// - Just upload: save the material, no AI run.
+/// - Make a card: one AI run over this note.
+/// - Make a card using my recent notes: this note plus the last week.
+/// - Show it as-is: one picture straight to a display, no AI.
 struct ComposerView: View {
     @Environment(AppModel.self) private var model
 
     @State private var text = ""
-    @State private var mode: Mode = .auto
-    @State private var destination: ComposerDestination?
+    @State private var action: ComposeAction = .upload
+    @State private var destination: AppModel.ComposeTarget = .agent
     @State private var generationID = UUID()
     @State private var virtualBaseRevision: Int64?
     @State private var attachments: [Attachment] = []
     @State private var isSending = false
+    @State private var progress: String?
     @State private var error: String?
     @State private var isAddingLink = false
     @State private var linkDraft = ""
     @FocusState private var isEditorFocused: Bool
-
-    enum Mode: String, CaseIterable, Identifiable {
-        case auto = "Auto", manual = "Manual"
-        var id: Self { self }
-    }
 
     struct Attachment: Identifiable {
         let id = UUID()
@@ -38,6 +42,11 @@ struct ComposerView: View {
             if isLink { return "link" }
             return isImage ? "photo" : "doc"
         }
+
+        var asset: PresentationAsset {
+            if let link { return .link(link) }
+            return .binary(filename: filename, contentType: contentType, data: data)
+        }
     }
 
     /// Tahoe rounds panels at roughly 22pt; inset by 12 leaves 10 here.
@@ -51,6 +60,10 @@ struct ComposerView: View {
         guard case .virtual(let id) = destination else { return nil }
         return id
     }
+    private var virtualTarget: VirtualDisplay? {
+        guard let virtualTargetID else { return nil }
+        return model.virtualDisplays.displays.first { $0.id == virtualTargetID }
+    }
 
     /// Only offered while the field is untouched — once you start typing, the
     /// suggestion is no longer what you meant.
@@ -61,8 +74,6 @@ struct ComposerView: View {
     }
 
     /// Shows the strongest signal, with a count for whatever else came with it.
-    /// Listing every source inline would turn a one-line hint into a paragraph,
-    /// and accepting is all-or-nothing anyway.
     private func ghostRow(_ capture: Capture) -> some View {
         HStack(spacing: 7) {
             Image(systemName: capture.symbol)
@@ -91,28 +102,25 @@ struct ComposerView: View {
         }
     }
 
+    /// A pinned target arrives from a display page and pre-selects a card; a
+    /// plain summon starts on "just upload" every time, so the expensive
+    /// actions are never fired by a remembered preference.
     private func syncTarget() {
         if let target = model.composerTarget {
-            mode = .manual
             destination = .hardware(target.id)
+            action = .card
         } else if let id = model.composerVirtualTargetID {
-            mode = .manual
             destination = .virtual(id)
+            action = .card
         } else {
-            mode = .auto
-            if destination == nil {
-                destination = model.devices.first.map { .hardware($0.id) }
-                    ?? model.virtualDisplays.displays.first.map { .virtual($0.id) }
-            }
+            destination = .agent
+            action = .upload
         }
     }
 
     /// Takes everything that was captured, not just the headline. Text lands in
     /// the field so it can be edited before sending; links and files become
     /// attachments, because there's nothing to edit about them.
-    ///
-    /// The window title is deliberately not attached — it's a label for the
-    /// suggestion, not content anyone means to send on its own.
     private func acceptGhost() {
         guard let capture = model.suggestion else { return }
 
@@ -134,24 +142,49 @@ struct ComposerView: View {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty
     }
 
-    /// Manual mode goes through the custom-push route, which the backend only
-    /// accepts images on. Anything else has to take the Auto path.
-    private var manualImage: Attachment? {
-        let images = attachments.filter(\.isImage)
-        guard images.count == 1, attachments.count == 1 else { return nil }
-        return images.first
+    /// The one picture "Show it as-is" would put on a panel.
+    private var singleImage: Attachment? {
+        guard attachments.count == 1, let only = attachments.first, only.isImage else { return nil }
+        return only
     }
 
-    private var manualBlocker: String? {
-        guard mode == .manual else { return nil }
+    /// `mode = direct` puts the uploaded picture on a panel untouched, so it
+    /// only makes sense when the picture is the whole upload. A Virtual Display
+    /// also accepts plain text, which the app renders locally.
+    private var asIsEligible: Bool {
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if virtualTargetID != nil {
-            if !attachments.isEmpty && manualImage == nil { return "Choose a single image, or send text without attachments. Use Auto for links and files." }
-            if text.unicodeScalars.count > 1000 { return "Use up to 1,000 characters for this display." }
-            return nil
+            if singleImage != nil { return body.isEmpty }
+            return attachments.isEmpty && !body.isEmpty && body.unicodeScalars.count <= 1000
         }
-        if target == nil { return "Pick a display to send to." }
-        if manualImage == nil {
-            return "Sending straight to a display works with a single image. Use Auto for text, links and files."
+        return body.isEmpty && singleImage != nil
+    }
+
+    private var actions: [ComposeAction] {
+        ComposeAction.allCases.filter { $0 != .asIs || asIsEligible }
+    }
+
+    private func label(for action: ComposeAction) -> (title: String, sub: String) {
+        switch action {
+        case .upload: ("Just upload", "no card, no AI run")
+        case .card: ("Make a card", "from this note · 1 AI run")
+        case .cardHistory: ("Make a card using my recent notes", "this + last 7 days · 1 AI run")
+        case .asIs: ("Show it as-is", "no AI, straight to the display")
+        }
+    }
+
+    private var blocker: String? {
+        guard action != .upload else { return nil }
+        if case .agent = destination {
+            if action == .asIs { return "Pick a display to show it as-is." }
+            if model.devices.isEmpty { return "Pair a display first, or pick a Virtual Display." }
+        }
+        if case .hardware = destination, target == nil { return "Pick a display to send to." }
+        if case .virtual = destination, virtualTarget == nil { return "This Virtual Display is unavailable." }
+        if action == .asIs, !asIsEligible {
+            return virtualTargetID != nil
+                ? "As-is takes one image, or up to 1,000 characters of text."
+                : "As-is takes a single image with nothing else."
         }
         return nil
     }
@@ -159,9 +192,15 @@ struct ComposerView: View {
     var body: some View {
         composerBody
             .onChange(of: text) { _, _ in generationID = UUID(); virtualBaseRevision = nil }
-            .onChange(of: attachments.map { $0.id }) { _, _ in generationID = UUID(); virtualBaseRevision = nil }
-            .onChange(of: destination) { _, _ in generationID = UUID(); virtualBaseRevision = nil; error = nil }
-            .onChange(of: mode) { _, _ in error = nil }
+            .onChange(of: attachments.map { $0.id }) { _, _ in
+                generationID = UUID(); virtualBaseRevision = nil
+                if action == .asIs, !asIsEligible { action = .card }
+            }
+            .onChange(of: destination) { _, _ in
+                generationID = UUID(); virtualBaseRevision = nil; error = nil
+                if action == .asIs, !asIsEligible { action = .card }
+            }
+            .onChange(of: action) { _, _ in error = nil }
     }
     private var composerBody: some View {
         // The toolbar sits directly under the editor and nothing grows above it,
@@ -174,12 +213,12 @@ struct ComposerView: View {
                 editor
                 toolbar
                 if !attachments.isEmpty { attachmentStrip }
-                if let message = error ?? manualBlocker { notice(message) }
+                if let message = error ?? progress ?? blocker { notice(message) }
             }
         }
         // No top inset — the header owns that band and sets its own height.
         .padding(EdgeInsets(top: 0, leading: 12, bottom: 12, trailing: 12))
-        .frame(width: 540)
+        .frame(width: 560)
         .background(Ink.bg)
         // The panel no longer sizes itself, so the content reports its own height
         // — attachments and notices grow the window downwards.
@@ -196,23 +235,17 @@ struct ComposerView: View {
             syncTarget()
             isEditorFocused = true
         }
+        .onChange(of: model.virtualDisplays.progress) { _, value in
+            if isSending, virtualTargetID != nil, let value { progress = value }
+        }
         .popover(isPresented: $isAddingLink, arrowEdge: .bottom) { linkSheet }
     }
 
     /// Just the wordmark, centred, sharing the strip with the real traffic
-    /// lights. Closing is the red button's job — a second, hand-drawn ✕ next to
-    /// it was redundant.
-    ///
-    /// The 32pt height is fixed by geometry, not taste: a traffic light's centre
-    /// sits 16pt below the window edge (9pt drop + 7pt radius). For the wordmark
-    /// to share that centre line *and* for the band to be evenly padded above and
-    /// below, the band has to be exactly twice that.
+    /// lights. The 32pt height is fixed by geometry: a traffic light's centre
+    /// sits 16pt below the window edge, so the band is exactly twice that.
     private var header: some View {
         Wordmark(size: 19)
-            // Optical, not geometric. "inklet PORTAL" has ascenders but no
-            // descenders, so the text block's measured middle — which is what
-            // `frame` centres — sits above where the eye puts it. Nudged down to
-            // land on the traffic lights' line.
             .offset(y: 2)
             .frame(maxWidth: .infinity)
             .frame(height: 32)
@@ -229,8 +262,6 @@ struct ComposerView: View {
             .lineLimit(5...5)
             .labelsHidden()
             .focused($isEditorFocused)
-            // The suggestion sits where the placeholder would, greyed out, and is
-            // never written into `text` until it's accepted.
             .overlay(alignment: .topLeading) {
                 if let ghost {
                     ghostRow(ghost)
@@ -255,9 +286,6 @@ struct ComposerView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            // Concentric with the window, not the app's card radius: a nested
-            // shape has to be *less* round than what encloses it, and the panel's
-            // own corner is the system window radius minus the 12pt inset.
             .background(Ink.input, in: .rect(cornerRadius: editorCorner))
             .overlay {
                 RoundedRectangle(cornerRadius: editorCorner).strokeBorder(Ink.border)
@@ -300,7 +328,7 @@ struct ComposerView: View {
 
     private func notice(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 6) {
-            Image(systemName: "info.circle")
+            Image(systemName: error != nil ? "exclamationmark.triangle" : (progress != nil ? "sparkles" : "info.circle"))
                 .font(.system(size: 11))
             Text(message)
                 .font(.system(size: 12))
@@ -310,7 +338,8 @@ struct ComposerView: View {
         .foregroundStyle(error == nil ? Ink.muted : Ink.danger)
     }
 
-    /// Mode switch and Send never move. Manual's extra picker grows to their left.
+    /// Target picker and the split send button never move; they sit at the
+    /// right edge and the attachment tools at the left.
     private var toolbar: some View {
         HStack(spacing: 8) {
             Button("Attach File", systemImage: "paperclip") { chooseFiles() }
@@ -322,28 +351,52 @@ struct ComposerView: View {
 
             Spacer(minLength: 8)
 
-            if mode == .manual {
-                ComposerDestinationPicker(controller: model.virtualDisplays, devices: model.devices, selection: $destination)
-                    .frame(maxWidth: 160)
-            }
+            ComposerTargetPicker(controller: model.virtualDisplays, devices: model.devices, selection: $destination)
+                .frame(maxWidth: 190)
+                .disabled(action == .upload)
+                .help(action == .upload ? "Just upload saves the note without sending it anywhere." : "Where the card goes.")
 
-            Picker("Mode", selection: $mode) {
-                ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-
-            Button("Send", systemImage: isSending ? "ellipsis" : "arrow.up") { send() }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!hasContent || isSending || manualBlocker != nil)
+            sendButton
         }
         .disabled(isSending)
-        // No transition on `mode`: animating the display picker in and out slides
-        // every other button sideways, which reads as a twitch when you're just
-        // toggling Auto/Manual. The row snaps instead.
+    }
+
+    /// The face names the action; the menu lists the rest. Pressing the face
+    /// sends. Return does the same.
+    private var sendButton: some View {
+        Menu {
+            ForEach(actions) { candidate in
+                let labels = label(for: candidate)
+                Button {
+                    action = candidate
+                } label: {
+                    if candidate == action {
+                        Label("\(labels.title) — \(labels.sub)", systemImage: "checkmark")
+                    } else {
+                        Text("\(labels.title) — \(labels.sub)")
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                if isSending {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: action == .upload ? "tray.and.arrow.down" : "arrow.up")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                Text(label(for: action).title)
+                    .lineLimit(1)
+            }
+        } primaryAction: {
+            send()
+        }
+        .menuStyle(.button)
+        .buttonStyle(.borderedProminent)
+        .fixedSize()
+        .keyboardShortcut(.defaultAction)
+        .disabled(!hasContent || isSending || blocker != nil)
+        .help(label(for: action).sub)
     }
 
     private var linkSheet: some View {
@@ -433,39 +486,37 @@ struct ComposerView: View {
     }
 
     private func send() {
-        guard hasContent, manualBlocker == nil else { return }
+        guard hasContent, blocker == nil, !isSending else { return }
         isSending = true
         error = nil
+        progress = action == .upload ? "Saving…" : "Uploading…"
 
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let payload = attachments
-        let selectedMode = mode
+        let selectedAction = action
+        let selectedDestination = destination
         let selectedVirtualID = virtualTargetID
-        let selectedDevice = target
-        let image = manualImage
+        let requestID = generationID
 
         Task {
-            defer { isSending = false }
+            defer { isSending = false; progress = nil }
             do {
-                if selectedMode == .manual, let device = selectedDevice, let image {
-                    try await model.sendDirect(
-                        image: .init(filename: image.filename, contentType: image.contentType, data: image.data),
-                        to: device,
-                        title: body)
-                } else if selectedMode == .manual, let id = selectedVirtualID {
+                let summary: String
+                if let id = selectedVirtualID, selectedAction != .upload {
                     if virtualBaseRevision == nil { virtualBaseRevision = model.virtualDisplays.displays.first { $0.id == id }?.revision }
                     guard let virtualBaseRevision else { throw VirtualDisplayError.message("This display is unavailable.") }
-                    try await model.sendDirect(text: body, image: image?.data, to: id, requestID: generationID, baseRevision: virtualBaseRevision)
+                    try await model.sendToVirtual(action: selectedAction, text: body, image: singleImage?.asset,
+                                                  to: id, requestID: requestID, baseRevision: virtualBaseRevision)
+                    summary = "Sent"
                 } else {
-                    let files = payload.filter { !$0.isLink }.map {
-                        InkletAPI.Attachment(filename: $0.filename, contentType: $0.contentType, data: $0.data)
-                    }
-                    let links = payload.compactMap(\.link)
-                    try await model.send(text: body, files: files, links: links)
+                    summary = try await model.compose(text: body, attachments: payload.map(\.asset),
+                                                      action: selectedAction, target: selectedDestination, requestID: requestID)
                 }
+                progress = summary
                 generationID = UUID()
                 text = ""
                 attachments = []
+                try? await Task.sleep(for: .milliseconds(650))
                 ComposerPanelController.shared.hide()
             } catch {
                 self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
@@ -474,28 +525,29 @@ struct ComposerView: View {
     }
 }
 
-private enum ComposerDestination: Hashable {
-    case hardware(String)
-    case virtual(UUID)
-}
-
-private struct ComposerDestinationPicker: View {
+/// "Let inklet choose", then every hardware Display, then every Virtual Display.
+private struct ComposerTargetPicker: View {
     @ObservedObject var controller: VirtualDisplayController
     let devices: [Device]
-    @Binding var selection: ComposerDestination?
-    private var available: [ComposerDestination] {
-        devices.map { .hardware($0.id) } + controller.displays.map { .virtual($0.id) }
+    @Binding var selection: AppModel.ComposeTarget
+    private var available: [AppModel.ComposeTarget] {
+        [.agent] + devices.map { .hardware($0.id) } + controller.displays.map { .virtual($0.id) }
     }
     var body: some View {
         Picker("Display", selection: $selection) {
-            Text("Choose display…").tag(nil as ComposerDestination?)
-            ForEach(devices) { Text($0.displayName).tag(Optional(ComposerDestination.hardware($0.id))) }
-            ForEach(controller.displays) { Text($0.name).tag(Optional(ComposerDestination.virtual($0.id))) }
+            Label("Let inklet choose", systemImage: "sparkles").tag(AppModel.ComposeTarget.agent)
+            if !devices.isEmpty {
+                Divider()
+                ForEach(devices) { Label($0.displayName, systemImage: "rectangle.on.rectangle").tag(AppModel.ComposeTarget.hardware($0.id)) }
+            }
+            if !controller.displays.isEmpty {
+                Divider()
+                ForEach(controller.displays) { Label($0.name, systemImage: "macwindow").tag(AppModel.ComposeTarget.virtual($0.id)) }
+            }
         }
         .labelsHidden()
-        .disabled(available.isEmpty)
         .onChange(of: available) { _, values in
-            if let selection, !values.contains(selection) { self.selection = nil }
+            if !values.contains(selection) { selection = .agent }
         }
     }
 }

@@ -132,11 +132,15 @@ ID build.
 
 The app talks to `https://dev.iminklet.com` with an inklet user access token:
 
-- `/api/devices`, `/api/raw-items`: Display and Content endpoints shared with
-  the Portal and iOS.
-- `/api/app/v1/contents`, `/api/app/v1/presentations`: targetless
-  Presentations (Scene v1 and PNG renditions) used by widgets and Virtual
-  Displays. The contract lives in the `inklet-sdk` repository.
+- `/api/app/v1/contents`, `/api/app/v1/analyses`, `/api/app/v1/presentations`:
+  the Content → Analysis → Presentation pipeline. Every send from the composer
+  uploads a Content and starts an Analysis; Knowledge lists Contents; Virtual
+  Displays and widgets read Scene v1 and PNG renditions. The agent's progress
+  is followed through the Analysis event stream. The contract lives in the
+  `inklet-sdk` repository (`ANALYSIS_CONTRACT.md`) and
+  `inklet-backend/docs/api/sdk-v1.md`.
+- `/api/devices`: legacy Display reads, rename, unbind, queue advance, and
+  history, shared with the Portal and iOS.
 - `/api/virtual-displays`: account-owned Virtual Displays; see
   [docs/virtual-displays.md](docs/virtual-displays.md).
 

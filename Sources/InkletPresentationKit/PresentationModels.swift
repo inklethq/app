@@ -106,15 +106,47 @@ nonisolated public struct PresentationProblemDTO: Codable, Sendable, Equatable {
 nonisolated public struct GeneratedPresentationDTO: Codable, Sendable, Equatable, Identifiable {
     public var id: String
     public var displayId: String?
+    public var analysisId: String?
+    /// Content ids only. The backend sends `{ id, role }` refs; caches written
+    /// before that hold bare strings, and both decode here.
     public var contentIds: [String]
+    /// `ai` / `direct` on current backends; older caches may hold `auto` etc.
     public var mode: String
     public var state: String
+    public var title: String?
     public var output: PresentationOutputDTO?
     public var scene: PresentationSceneDTO?
     public var renditions: [PresentationRenditionDTO]
     public var failure: PresentationProblemDTO?
     public var createdAt: String
     public var updatedAt: String
+
+    private enum CodingKeys: String, CodingKey {
+        case id, displayId, analysisId, contentIds, mode, state, title, output, scene, renditions, failure, createdAt, updatedAt
+    }
+
+    private struct ContentRef: Decodable { let id: String }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        displayId = try container.decodeIfPresent(String.self, forKey: .displayId)
+        analysisId = try container.decodeIfPresent(String.self, forKey: .analysisId)
+        if let refs = try? container.decode([ContentRef].self, forKey: .contentIds) {
+            contentIds = refs.map(\.id)
+        } else {
+            contentIds = try container.decodeIfPresent([String].self, forKey: .contentIds) ?? []
+        }
+        mode = try container.decodeIfPresent(String.self, forKey: .mode) ?? ""
+        state = try container.decode(String.self, forKey: .state)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        output = try container.decodeIfPresent(PresentationOutputDTO.self, forKey: .output)
+        scene = try container.decodeIfPresent(PresentationSceneDTO.self, forKey: .scene)
+        renditions = try container.decodeIfPresent([PresentationRenditionDTO].self, forKey: .renditions) ?? []
+        failure = try container.decodeIfPresent(PresentationProblemDTO.self, forKey: .failure)
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt) ?? createdAt
+    }
 }
 
 nonisolated public struct CachedPresentationDTO: Codable, Sendable, Equatable {

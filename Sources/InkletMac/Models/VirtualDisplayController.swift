@@ -176,7 +176,13 @@ final class VirtualDisplayController: ObservableObject {
             let generated: GeneratedPresentationDTO
             if let cached = generatedDrafts[requestID] { generated = cached }
             else {
-                generated = try await client.generate(assets: assets, mode: mode, requestID: requestID, width: width, height: height)
+                generated = try await client.generate(assets: assets, mode: mode, requestID: requestID, width: width, height: height) { event in
+                    let line = event.displayText
+                    Task { @MainActor [weak self] in
+                        guard let self, self.isCurrent(expected) else { return }
+                        self.progress = line
+                    }
+                }
                 guard isCurrent(expected) else { throw CancellationError() }
                 if generatedDrafts.count >= 10 { generatedDrafts.removeAll() }
                 generatedDrafts[requestID] = generated

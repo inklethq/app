@@ -1,4 +1,5 @@
 import Foundation
+import InkletPresentationKit
 
 // View-facing models. Each one is built from the matching wire type in Wire.swift
 // so the UI never deals with optional strings, snake_case, or RFC3339 parsing.
@@ -94,16 +95,18 @@ struct KnowledgeItem: Identifiable, Hashable {
         }
     }
 
+    /// Where a Content is, seen from the user: its Assets are still arriving,
+    /// it is saved and waiting, an Analysis has used it, or it failed.
     enum ProcessStatus: String {
-        case raw = "RAW"
-        case ingested = "INGESTED"
-        case ready = "READY"
-        case failed = "FAILED"
+        case uploading
+        case saved
+        case ready
+        case failed
 
         var label: String {
             switch self {
-            case .raw: "Queued"
-            case .ingested: "Processing"
+            case .uploading: "Uploading"
+            case .saved: "Saved"
             case .ready: "Organized"
             case .failed: "Failed"
             }
@@ -112,50 +115,58 @@ struct KnowledgeItem: Identifiable, Hashable {
 
     let id: String
     var processStatus: ProcessStatus
-    var blockCount: Int
+    var assetCount: Int
+    var analysisCount: Int
     var createdAt: Date
-    /// Filled in by a follow-up detail fetch — the list endpoint doesn't return
-    /// item content, so a fresh row starts out with no title to show.
     var title: String?
     var detail: String?
     var kind: Kind?
 
-    init(dto: RawItemDTO) {
+    init(dto: ContentDTO) {
         id = dto.id
-        processStatus = ProcessStatus(rawValue: dto.processStatus ?? "") ?? .raw
-        blockCount = dto.blockCount ?? 0
+        assetCount = dto.assets.count
+        analysisCount = dto.analysisIds?.count ?? 0
         createdAt = InkletTime.parse(dto.createdAt) ?? .now
-    }
+        switch dto.state {
+        case "pending": processStatus = .uploading
+        case "failed": processStatus = .failed
+        default: processStatus = analysisCount > 0 ? .ready : .saved
+        }
 
-    /// Derives the row's title, subtitle and icon from an item's bundle content.
-    mutating func apply(content: BundleContentDTO) {
-        let attachments = content.attach ?? []
-        let text = (content.main_text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let links = attachments.filter { $0.type == "link" }
-        let images = attachments.filter { $0.type == "image" }
-        let docs = attachments.filter { $0.type == "doc" }
+        let texts = dto.assets.filter { $0.type == "text" }
+        let links = dto.assets.filter { $0.type == "link" }
+        let images = dto.assets.filter { $0.type == "image" }
+        let files = dto.assets.filter { $0.type == "file" }
+        let firstLine = texts.first?.text?
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { !$0.isEmpty }
 
-        if !text.isEmpty {
-            title = text.split(separator: "\n").first.map(String.init) ?? text
-            kind = links.isEmpty ? .text : .link
+        if let named = dto.title, !named.isEmpty {
+            title = named
+        } else if let firstLine {
+            title = firstLine
         } else if let link = links.first?.url {
             title = link
-            kind = .link
         } else if !images.isEmpty {
-            title = images.count == 1 ? "Image" : "\(images.count) images"
-            kind = .image
-        } else if !docs.isEmpty {
-            title = docs.count == 1 ? "Document" : "\(docs.count) documents"
-            kind = .file
+            title = images.count == 1 ? (images.first?.filename ?? "Image") : "\(images.count) images"
+        } else if !files.isEmpty {
+            title = files.count == 1 ? (files.first?.filename ?? "Document") : "\(files.count) documents"
         } else {
             title = "Empty item"
-            kind = .bundle
         }
+
+        if !texts.isEmpty { kind = links.isEmpty ? .text : .link }
+        else if !links.isEmpty { kind = .link }
+        else if !images.isEmpty { kind = .image }
+        else if !files.isEmpty { kind = .file }
+        else { kind = .bundle }
 
         var parts: [String] = []
         if !links.isEmpty { parts.append("\(links.count) link\(links.count == 1 ? "" : "s")") }
         if !images.isEmpty { parts.append("\(images.count) image\(images.count == 1 ? "" : "s")") }
-        if !docs.isEmpty { parts.append("\(docs.count) file\(docs.count == 1 ? "" : "s")") }
+        if !files.isEmpty { parts.append("\(files.count) file\(files.count == 1 ? "" : "s")") }
+        if let failure = dto.failure, processStatus == .failed { parts.append(failure.message) }
         detail = parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
