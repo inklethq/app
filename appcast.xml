@@ -3,6 +3,31 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.2.0-beta.3</title>
+            <pubDate>Wed, 16 Sep 2026 03:59:48 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:channel>beta</sparkle:channel>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>0.2.0-beta.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.0 Beta 3
+
+Changes since 0.2.0 Beta 2
+- Display pages read their history and switch what is showing through
+  the new Presentation API: Show Next reports an empty queue honestly,
+  and any earlier card can be put back on the display.
+- Settings now do what they say: Launch at login, Show in Dock (with a
+  menu bar item), system notifications for delivered, failed, and
+  offline, and weather on Home.
+- Settings tabs are ordered General, Notifications, Account, About.
+
+Known limitations
+- Requires macOS 26.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.0-beta.3/inklet-portal-0.2.0-beta.3-mac-universal.dmg" length="7080288" type="application/octet-stream" sparkle:edSignature="9Co6ujiZMYy7MdAW50aeIfs+4E/T1GVYLRFTPTyPb3t8vLg/P1lpuX/gU/LwZavAcAyj/esCq4dRd6KJJ4w3Aw=="/>
+        </item>
+        <item>
             <title>0.2.0-beta.2</title>
             <pubDate>Wed, 16 Sep 2026 03:43:42 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
