@@ -3,6 +3,35 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.2.0-beta.2</title>
+            <pubDate>Wed, 16 Sep 2026 03:43:42 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:channel>beta</sparkle:channel>
+            <sparkle:version>8</sparkle:version>
+            <sparkle:shortVersionString>0.2.0-beta.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.0 Beta 2
+
+Sending now uses the backend's Content → Analysis → Presentation pipeline.
+Beta 1 stopped working against the current service; update to this build.
+
+Changes since 0.2.0 Beta 1
+- The composer's send button offers four actions: Just upload, Make a
+  card, Make a card using my recent notes, and Show it as-is.
+- Pick where a card goes: let inklet choose, a paired display, or a
+  Virtual Display.
+- Home follows each run live with what inklet is doing.
+- Knowledge lists everything uploaded from any client.
+
+Known limitations
+- Requires macOS 26.
+- Launch at login, Show in Dock, and notification settings are not yet
+  functional.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.0-beta.2/inklet-portal-0.2.0-beta.2-mac-universal.dmg" length="6843156" type="application/octet-stream" sparkle:edSignature="v/jWWz5yOpS+EshR8YBjaZCpF3abXmNb93JXuZoLqIpCz3igrD4GmQI/VcOvW96iO96J3DQYkluOHZXENQWsAw=="/>
+        </item>
+        <item>
             <title>0.2.0-beta.1</title>
             <pubDate>Mon, 14 Sep 2026 21:38:53 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
