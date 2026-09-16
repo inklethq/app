@@ -44,6 +44,8 @@ final class AppModel {
     /// image doesn't, so the image is what gets cached.
     private(set) var previews: [String: NSImage] = [:]
     private var previewTasks: Set<String> = []
+    private var currentPresentationIDs: [String: String] = [:]
+    private var historyFloors: [String: Date] = [:]
 
     private var session: Session?
     private var accountGeneration = UUID()
@@ -85,6 +87,8 @@ final class AppModel {
         activityByDay = [:]
         previews = [:]
         previewTasks = []
+        currentPresentationIDs = [:]
+        historyFloors = [:]
         runTasks.values.forEach { $0.cancel() }
         runTasks = [:]
         runs = []
@@ -120,6 +124,15 @@ final class AppModel {
     private func loadDevices() async {
         do {
             let fetched = try await InkletAPI.shared.devices().map(Device.init(dto:))
+            // A display that was online at the last read and is not now.
+            if !devices.isEmpty {
+                let wasOnline = Set(devices.filter(\.online).map(\.id))
+                for device in fetched where !device.online && wasOnline.contains(device.id) {
+                    Notifier.shared.post(.offline, title: "\(device.displayName) went offline",
+                                         body: "It keeps showing what it has until it checks in again.",
+                                         id: "offline-\(device.id)")
+                }
+            }
             devices = fetched
             loadError = nil
             for device in fetched {
@@ -190,36 +203,36 @@ final class AppModel {
 
     func loadHistory(for device: Device) async {
         do {
-            let page = try await InkletAPI.shared.pushes(deviceID: device.id, limit: 30)
+            let page = try await InkletAPI.shared.displayHistory(displayID: device.id, limit: 30)
             pushes[device.id] = page.items.map(Push.init(dto:))
-        } catch APIError.noPush {
-            pushes[device.id] = []
+            historyFloors[device.id] = page.historyWindowStart.flatMap(InkletTime.parse)
         } catch {
             await handle(error)
         }
     }
 
+    /// When the plan clips this Display's history, the instant it is clipped at.
+    func historyFloor(for device: Device) -> Date? { historyFloors[device.id] }
+
     func preview(for device: Device) -> NSImage? {
-        guard let pushID = device.latestPushID else { return nil }
-        return previews[pushID]
+        guard let id = currentPresentationIDs[device.id] else { return nil }
+        return previews[id]
     }
 
-    /// Fetches the presigned PNG for whatever the display is currently showing.
-    /// Uses the by-id endpoint, which is a pure read — the plain `/push` route
-    /// promotes the next queued item as a side effect.
+    /// The Presentation the panel last confirmed, and its image. A pure read:
+    /// the legacy `/push` route promoted the queue as a side effect, this does not.
     func loadPreview(for device: Device) {
-        guard let pushID = device.latestPushID,
-              previews[pushID] == nil,
-              !previewTasks.contains(pushID) else { return }
-        previewTasks.insert(pushID)
+        guard !previewTasks.contains(device.id) else { return }
+        previewTasks.insert(device.id)
 
         Task { @MainActor in
-            defer { previewTasks.remove(pushID) }
+            defer { previewTasks.remove(device.id) }
             do {
-                let info = try await InkletAPI.shared.pushImage(deviceID: device.id, pushID: pushID)
-                guard let url = URL(string: info.url) else { return }
+                guard let current = try await InkletAPI.shared.currentPresentation(displayID: device.id) else { return }
+                currentPresentationIDs[device.id] = current.id
+                guard previews[current.id] == nil, let url = current.image.flatMap({ URL(string: $0.url) }) else { return }
                 let data = try await InkletAPI.shared.fetchData(from: url)
-                if let image = NSImage(data: data) { previews[pushID] = image }
+                if let image = NSImage(data: data) { previews[current.id] = image }
             } catch {
                 // A missing preview is not worth an error banner — the frame
                 // falls back to its empty state.
@@ -253,9 +266,24 @@ final class AppModel {
         }
     }
 
-    /// Advances a display to the next queued push and re-reads its state.
-    func showNext(_ device: Device) async throws {
-        _ = try await InkletAPI.shared.advanceQueue(deviceID: device.id)
+    /// Advances a display to the next queued Presentation and re-reads its
+    /// state. Returns false when the queue was empty.
+    @discardableResult
+    func showNext(_ device: Device) async throws -> Bool {
+        let changed = try await InkletAPI.shared.advanceDisplay(displayID: device.id)
+        await refreshAfterSwitch(device)
+        return changed
+    }
+
+    /// Puts one of this panel's earlier Presentations back on screen.
+    func show(_ push: Push, on device: Device) async throws {
+        try await InkletAPI.shared.setCurrentPresentation(displayID: device.id, presentationID: push.id)
+        await refreshAfterSwitch(device)
+    }
+
+    /// Both switches land on the panel's pending slot until it confirms, so the
+    /// preview is re-read rather than assumed.
+    private func refreshAfterSwitch(_ device: Device) async {
         await reloadDevice(device.id)
         if let updated = self.device(withID: device.id) {
             await loadHistory(for: updated)
@@ -360,6 +388,13 @@ final class AppModel {
                 update(runID, generation: expected) {
                     $0.state = done.state; $0.outcome = done.outcome; $0.failure = done.failure?.message
                 }
+                if done.state == "failed" {
+                    Notifier.shared.post(.failed, title: "Couldn't send “\(title)”",
+                                         body: done.failure?.message ?? "inklet could not finish this one.", id: "run-\(runID)")
+                } else if done.outcome == "presentations" {
+                    Notifier.shared.post(.delivered, title: "“\(title)” is on its way",
+                                         body: "Heading to \(destination). The display picks it up on its next check-in.", id: "run-\(runID)")
+                }
                 if let deviceID {
                     await reloadDevice(deviceID)
                     if let device = device(withID: deviceID) { await loadHistory(for: device) }
@@ -372,10 +407,9 @@ final class AppModel {
                 runs.removeAll { $0.id == runID && $0.state == "completed" }
             } catch {
                 guard let self, self.accountGeneration == expected else { return }
-                update(runID, generation: expected) {
-                    $0.state = "failed"
-                    $0.failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                }
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                update(runID, generation: expected) { $0.state = "failed"; $0.failure = message }
+                Notifier.shared.post(.failed, title: "Couldn't send “\(title)”", body: message, id: "run-\(runID)")
             }
         }
     }

@@ -101,6 +101,17 @@ Required repository secrets:
 `.github/workflows/ci.yml` validates the scripts, runs the tests, and packages
 a universal ad-hoc build on every pull request and push to `main`.
 
+## Settings that reach the system
+
+| Setting | How it works |
+| --- | --- |
+| Launch at login | `SMAppService.mainApp`; the toggle reads the system's status, and a "requires approval" state links to System Settings |
+| Show in Dock | Switches the activation policy between regular and accessory. The menu bar item is always present, so the app stays reachable with the Dock icon off |
+| Notifications | `UNUserNotificationCenter`: a card on its way, a failed send, a display that went offline. Permission is requested the first time an alert is turned on |
+| Weather on Home | CoreLocation for an approximate position, conditions from Open-Meteo (no key, no WeatherKit entitlement) |
+
+All four need a packaged `.app`; under `swift run` they show as unavailable.
+
 ## Automatic updates
 
 Installed apps update themselves through [Sparkle](https://sparkle-project.org)

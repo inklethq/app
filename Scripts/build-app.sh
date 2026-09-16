@@ -115,6 +115,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleURLName</key><string>com.iminklet.mac.widgets</string>
     <key>CFBundleURLSchemes</key><array><string>inklet-mac</string></array>
   </dict></array>
+  <key>NSLocationUsageDescription</key>
+  <string>inklet Portal uses your approximate location to show the weather on Home.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>inklet Portal uses your approximate location to show the weather on Home.</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>inklet Portal reads what you're looking at — a browser's address, a Finder selection, or the photo you have open — so the composer can offer it when you summon it.</string>
   <key>NSServices</key>
