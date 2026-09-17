@@ -259,10 +259,7 @@ private struct AboutSettings: View {
                     HStack(spacing: 8) {
                         Link("Privacy Policy", destination: URL(string: "https://www.iminklet.com/privacy-policy")!)
                         Text("·").foregroundStyle(.tertiary)
-                        Button("Terms of Service") { }
-                            .buttonStyle(.link)
-                            .disabled(true)
-                            .help("Coming soon")
+                        Link("Terms of Service", destination: URL(string: "https://www.iminklet.com/terms-of-service")!)
                     }
                     .font(.body)
                     VStack(spacing: 3) {
