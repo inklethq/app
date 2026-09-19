@@ -104,8 +104,7 @@ struct LoginView: View {
     /// Apple's HIG for custom Sign in with Apple buttons: black with white
     /// logo and title on light backgrounds, white on dark; the title in the
     /// system font at 43% of the button height (17pt of 40pt); logo and title
-    /// only ever both black or both white; corner radius matched to the
-    /// app's other buttons.
+    /// only ever both black or both white.
     private var appleButton: some View {
         SignInButton(title: "Continue with Apple",
                      titleFont: .system(size: 17, weight: .medium),
@@ -124,7 +123,7 @@ struct LoginView: View {
     /// Google's Sign in with Google branding: 40pt tall, 1pt inside border,
     /// the unmodified 20pt colour G, a 14pt medium label 10pt from the logo,
     /// 12pt side padding; light #FFFFFF/#747775/#1F1F1F, dark
-    /// #131314/#8E918F/#E3E3E3; rectangular (4pt) or pill shapes only.
+    /// #131314/#8E918F/#E3E3E3.
     private var googleButton: some View {
         SignInButton(title: "Continue with Google",
                      titleFont: BrandFonts.googleSignIn(14),
@@ -265,8 +264,8 @@ struct SplashView: View {
 /// guidelines (Google: 40pt tall, 12pt side padding, 10pt between logo and
 /// label). Both providers share the geometry so the pair reads as one set;
 /// only colours, logos, and the title size each guideline fixes differ.
-/// Google allows rectangular or pill shapes only, and Apple lets the radius
-/// match the app's other buttons, so both use the 4pt rectangular corner.
+/// Both use the app's control corner so they line up with the sign-in form
+/// above.
 private struct SignInButton<Icon: View>: View {
     let title: String
     var titleFont: Font = .system(size: 14, weight: .medium)
@@ -278,7 +277,6 @@ private struct SignInButton<Icon: View>: View {
     let action: @MainActor () async -> Void
 
     @State private var isHovering = false
-    private static var corner: CGFloat { 4 }
 
     var body: some View {
         Button {
@@ -293,16 +291,16 @@ private struct SignInButton<Icon: View>: View {
             .frame(maxWidth: .infinity)
             .frame(height: 40)
             .padding(.horizontal, 12)
-            .background(fill, in: .rect(cornerRadius: Self.corner))
+            .background(fill, in: .rect(cornerRadius: Ink.controlCorner))
             .overlay {
-                RoundedRectangle(cornerRadius: Self.corner).strokeBorder(border)
+                RoundedRectangle(cornerRadius: Ink.controlCorner).strokeBorder(border)
             }
             // Google specifies an 8% state layer of the label colour on hover.
             .overlay {
-                RoundedRectangle(cornerRadius: Self.corner)
+                RoundedRectangle(cornerRadius: Ink.controlCorner)
                     .fill(foreground.opacity(isHovering ? 0.08 : 0))
             }
-            .contentShape(.rect(cornerRadius: Self.corner))
+            .contentShape(.rect(cornerRadius: Ink.controlCorner))
         }
         .buttonStyle(.plain)
         .disabled(isBusy)
