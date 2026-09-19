@@ -101,22 +101,50 @@ struct LoginView: View {
         }
     }
 
+    /// Apple's HIG for custom Sign in with Apple buttons: black with white
+    /// logo and title on light backgrounds, white on dark; the title in the
+    /// system font at 43% of the button height (17pt of 40pt); logo and title
+    /// only ever both black or both white; corner radius matched to the
+    /// app's other buttons.
     private var appleButton: some View {
-        ProviderButton(title: "Continue with Apple", isBusy: session.isWorking) {
+        SignInButton(title: "Continue with Apple",
+                     titleFont: .system(size: 17, weight: .medium),
+                     fill: Self.dynamic(light: 0x000000, dark: 0xFFFFFF),
+                     border: Self.dynamic(light: 0x000000, dark: 0xFFFFFF),
+                     foreground: Self.dynamic(light: 0xFFFFFF, dark: 0x000000),
+                     isBusy: session.isWorking) {
             Image(systemName: "apple.logo")
-                .font(.system(size: 15, weight: .medium))
-                .frame(width: 16, height: 16)
+                .font(.system(size: 17, weight: .medium))
+                .frame(width: 20, height: 20)
         } action: {
             await session.signInWithApple()
         }
     }
 
+    /// Google's Sign in with Google branding: 40pt tall, 1pt inside border,
+    /// the unmodified 20pt colour G, a 14pt medium label 10pt from the logo,
+    /// 12pt side padding; light #FFFFFF/#747775/#1F1F1F, dark
+    /// #131314/#8E918F/#E3E3E3; rectangular (4pt) or pill shapes only.
     private var googleButton: some View {
-        ProviderButton(title: "Continue with Google", isBusy: session.isWorking) {
-            GoogleMark().frame(width: 16, height: 16)
+        SignInButton(title: "Continue with Google",
+                     titleFont: BrandFonts.googleSignIn(14),
+                     fill: Self.dynamic(light: 0xFFFFFF, dark: 0x131314),
+                     border: Self.dynamic(light: 0x747775, dark: 0x8E918F),
+                     foreground: Self.dynamic(light: 0x1F1F1F, dark: 0xE3E3E3),
+                     isBusy: session.isWorking) {
+            GoogleMark().frame(width: 20, height: 20)
         } action: {
             await session.signInWithGoogle()
         }
+    }
+
+    fileprivate static func dynamic(light: Int, dark: Int) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+            return NSColor(red: CGFloat((hex >> 16) & 0xFF) / 255,
+                           green: CGFloat((hex >> 8) & 0xFF) / 255,
+                           blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+        })
     }
 
     private var footer: some View {
@@ -233,38 +261,48 @@ struct SplashView: View {
 }
 
 
-/// The portal's `.portal-button-secondary`: paper-white on light, a lifted
-/// charcoal on dark, a hairline border that darkens on hover, 36pt tall.
-private struct ProviderButton<Icon: View>: View {
+/// One identity-provider button, sized to the stricter of the two brand
+/// guidelines (Google: 40pt tall, 12pt side padding, 10pt between logo and
+/// label). Both providers share the geometry so the pair reads as one set;
+/// only colours, logos, and the title size each guideline fixes differ.
+/// Google allows rectangular or pill shapes only, and Apple lets the radius
+/// match the app's other buttons, so both use the 4pt rectangular corner.
+private struct SignInButton<Icon: View>: View {
     let title: String
+    var titleFont: Font = .system(size: 14, weight: .medium)
+    let fill: Color
+    let border: Color
+    let foreground: Color
     var isBusy = false
     @ViewBuilder var icon: Icon
     let action: @MainActor () async -> Void
 
     @State private var isHovering = false
-
-    private static var fill: Color { dynamic(light: 0xFBFAF7, dark: 0x242321) }
-    private static var stroke: Color { dynamic(light: 0xCFCBC1, dark: 0x4A463F) }
-    private static var strokeHover: Color { dynamic(light: 0x6F6B63, dark: 0x8E8980) }
+    private static var corner: CGFloat { 4 }
 
     var body: some View {
         Button {
             Task { await action() }
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 icon
                 Text(title)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(titleFont)
             }
-            .foregroundStyle(Ink.text)
+            .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
-            .frame(height: 36)
-            .background(Self.fill, in: .rect(cornerRadius: Ink.controlCorner))
+            .frame(height: 40)
+            .padding(.horizontal, 12)
+            .background(fill, in: .rect(cornerRadius: Self.corner))
             .overlay {
-                RoundedRectangle(cornerRadius: Ink.controlCorner)
-                    .strokeBorder(isHovering ? Self.strokeHover : Self.stroke)
+                RoundedRectangle(cornerRadius: Self.corner).strokeBorder(border)
             }
-            .contentShape(.rect(cornerRadius: Ink.controlCorner))
+            // Google specifies an 8% state layer of the label colour on hover.
+            .overlay {
+                RoundedRectangle(cornerRadius: Self.corner)
+                    .fill(foreground.opacity(isHovering ? 0.08 : 0))
+            }
+            .contentShape(.rect(cornerRadius: Self.corner))
         }
         .buttonStyle(.plain)
         .disabled(isBusy)
@@ -272,19 +310,10 @@ private struct ProviderButton<Icon: View>: View {
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.12), value: isHovering)
     }
-
-    private static func dynamic(light: Int, dark: Int) -> Color {
-        Color(nsColor: NSColor(name: nil) { appearance in
-            let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
-            return NSColor(red: CGFloat((hex >> 16) & 0xFF) / 255,
-                           green: CGFloat((hex >> 8) & 0xFF) / 255,
-                           blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
-        })
-    }
 }
 
-/// Google's four-colour "G" (96px PNG in Resources, rendered from the same
-/// SVG the web portal inlines; SwiftUI's `Path(String)` cannot parse it).
+/// Google's four-colour "G" at 120px in Resources, rendered from the SVG
+/// Google publishes with its branding guidelines.
 private struct GoogleMark: View {
     var body: some View {
         if let url = AppResources.url("google-mark", extension: "png"), let image = NSImage(contentsOf: url) {
