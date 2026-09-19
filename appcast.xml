@@ -3,6 +3,22 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.2.3</title>
+            <pubDate>Sat, 19 Sep 2026 21:18:06 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:version>13</sparkle:version>
+            <sparkle:shortVersionString>0.2.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.3
+
+Fixes
+- Sign in with Apple and Google buttons use the same corner radius as
+  the sign-in form above them.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.3/inklet-portal-0.2.3-mac-universal.dmg" length="7984172" type="application/octet-stream" sparkle:edSignature="5M6kQ4XEpc9YEXHI1dP3DvsZi781scF19m93C1Xq2jW7MOtQQ+ssoxVFKvFq3+THsP3WZ6DzxvV8Gw59fQiWDw=="/>
+        </item>
+        <item>
             <title>0.2.2</title>
             <pubDate>Sat, 19 Sep 2026 21:04:50 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
@@ -36,43 +52,6 @@ Fixes
 
 ]]></description>
             <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.1/inklet-portal-0.2.1-mac-universal.dmg" length="7104745" type="application/octet-stream" sparkle:edSignature="Lt1IF8gOHCRrEOevc6yNsGfYSa2m8JM6Lnxyf36NuirOQcVcrxY/uY4UBK2y/w8qBQ6INieSFZ/jVu2VmvnOCA=="/>
-        </item>
-        <item>
-            <title>0.2.0</title>
-            <pubDate>Thu, 17 Sep 2026 22:28:43 +0000</pubDate>
-            <link>https://github.com/inklethq/app/releases</link>
-            <sparkle:version>10</sparkle:version>
-            <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.0
-
-The first release of the native macOS app, replacing the Electron client.
-
-Highlights
-- Sends go through inklet's Content → Analysis → Presentation pipeline.
-  The send button offers Just upload, Make a card, Make a card using my
-  recent notes, and Show it as-is; a target picker chooses between
-  letting inklet pick, a paired display, or a Virtual Display.
-- Home follows each run live with what inklet is doing.
-- Virtual Displays: create them, publish text or images, and show them
-  on the desktop with the Virtual Display widget. Quick Send and
-  Activity widgets are included.
-- Display pages show full history, can advance the queue, and can put an
-  earlier card back on screen.
-- Sign in with a password, Google, or Apple.
-- Automatic updates: "Check for Updates…" in the application menu, with
-  settings under Settings → General → Updates.
-- Settings that reach the system: launch at login, show in Dock (with a
-  menu bar item), notifications for delivered, failed, and offline, and
-  weather on Home.
-- Universal build for Apple silicon and Intel, Developer ID signed and
-  notarized.
-
-Requirements
-- macOS 26.
-
-]]></description>
-            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.0/inklet-portal-0.2.0-mac-universal.dmg" length="7075294" type="application/octet-stream" sparkle:edSignature="VNUqV/aHtUn/aIOrUk/l69wEJlstTlyWSkQ9XR1Pl/MEdF6fuKB/XNgvLm+kJdV41fG8wUwfA4kYHgVEuutXAw=="/>
         </item>
         <item>
             <title>0.2.0-beta.3</title>
