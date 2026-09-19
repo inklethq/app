@@ -3,6 +3,24 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.2.1</title>
+            <pubDate>Sat, 19 Sep 2026 19:42:00 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:version>11</sparkle:version>
+            <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.1
+
+Fixes
+- The Dock icon now stays while any window is open. "Keep in Dock" only
+  decides whether it remains once just the composer is left.
+- Sign-in: the Apple and Google buttons follow the portal's style and
+  spacing, with the proper logos.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.1/inklet-portal-0.2.1-mac-universal.dmg" length="7104745" type="application/octet-stream" sparkle:edSignature="Lt1IF8gOHCRrEOevc6yNsGfYSa2m8JM6Lnxyf36NuirOQcVcrxY/uY4UBK2y/w8qBQ6INieSFZ/jVu2VmvnOCA=="/>
+        </item>
+        <item>
             <title>0.2.0</title>
             <pubDate>Thu, 17 Sep 2026 22:28:43 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
