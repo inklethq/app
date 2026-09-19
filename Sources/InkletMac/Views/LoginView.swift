@@ -19,13 +19,22 @@ struct LoginView: View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
 
-            VStack(spacing: 26) {
+            // Rhythm from the web portal's sign-in page: the form, a 20pt band
+            // around the divider, the two provider buttons 10pt apart, then the
+            // footer. One spacing for everything read as a stack of unrelated
+            // rows.
+            VStack(spacing: 0) {
                 wordmark
+                    .padding(.bottom, 28)
                 form
                 divider
-                appleButton
-                googleButton
+                    .padding(.vertical, 20)
+                VStack(spacing: 10) {
+                    appleButton
+                    googleButton
+                }
                 footer
+                    .padding(.top, 24)
             }
             .frame(width: 340)
 
@@ -85,50 +94,29 @@ struct LoginView: View {
     private var divider: some View {
         HStack(spacing: 12) {
             Rectangle().fill(Ink.border).frame(height: 1)
-            Text("OR")
-                .font(.system(size: 10, weight: .medium))
-                .tracking(1.2)
+            Text("or")
+                .font(.system(size: 12))
                 .foregroundStyle(Ink.muted)
             Rectangle().fill(Ink.border).frame(height: 1)
         }
     }
 
     private var appleButton: some View {
-        providerButton(title: "Continue with Apple", symbol: "apple.logo") {
+        ProviderButton(title: "Continue with Apple", isBusy: session.isWorking) {
+            Image(systemName: "apple.logo")
+                .font(.system(size: 15, weight: .medium))
+                .frame(width: 16, height: 16)
+        } action: {
             await session.signInWithApple()
         }
     }
 
     private var googleButton: some View {
-        providerButton(title: "Continue with Google", symbol: "globe") {
+        ProviderButton(title: "Continue with Google", isBusy: session.isWorking) {
+            GoogleMark().frame(width: 16, height: 16)
+        } action: {
             await session.signInWithGoogle()
         }
-    }
-
-    private func providerButton(
-        title: String,
-        symbol: String,
-        action: @escaping @MainActor () async -> Void
-    ) -> some View {
-        Button {
-            Task { await action() }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: symbol)
-                    .font(.system(size: 13))
-                Text(title)
-                    .font(.system(size: 14))
-            }
-            .foregroundStyle(Ink.text)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 11)
-            .background(Ink.card, in: .rect(cornerRadius: Ink.controlCorner))
-            .overlay {
-                RoundedRectangle(cornerRadius: Ink.controlCorner).strokeBorder(Ink.border)
-            }
-        }
-        .buttonStyle(.plain)
-        .disabled(session.isWorking)
     }
 
     private var footer: some View {
@@ -149,7 +137,6 @@ struct LoginView: View {
             .buttonStyle(.plain)
             .pointerStyle(.link)
         }
-        .padding(.top, 6)
     }
 
     private func submit() {
@@ -242,5 +229,68 @@ struct SplashView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Ink.bg.ignoresSafeArea())
         .background(WindowStyler().frame(width: 0, height: 0))
+    }
+}
+
+
+/// The portal's `.portal-button-secondary`: paper-white on light, a lifted
+/// charcoal on dark, a hairline border that darkens on hover, 36pt tall.
+private struct ProviderButton<Icon: View>: View {
+    let title: String
+    var isBusy = false
+    @ViewBuilder var icon: Icon
+    let action: @MainActor () async -> Void
+
+    @State private var isHovering = false
+
+    private static var fill: Color { dynamic(light: 0xFBFAF7, dark: 0x242321) }
+    private static var stroke: Color { dynamic(light: 0xCFCBC1, dark: 0x4A463F) }
+    private static var strokeHover: Color { dynamic(light: 0x6F6B63, dark: 0x8E8980) }
+
+    var body: some View {
+        Button {
+            Task { await action() }
+        } label: {
+            HStack(spacing: 8) {
+                icon
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .foregroundStyle(Ink.text)
+            .frame(maxWidth: .infinity)
+            .frame(height: 36)
+            .background(Self.fill, in: .rect(cornerRadius: Ink.controlCorner))
+            .overlay {
+                RoundedRectangle(cornerRadius: Ink.controlCorner)
+                    .strokeBorder(isHovering ? Self.strokeHover : Self.stroke)
+            }
+            .contentShape(.rect(cornerRadius: Ink.controlCorner))
+        }
+        .buttonStyle(.plain)
+        .disabled(isBusy)
+        .opacity(isBusy ? 0.6 : 1)
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: isHovering)
+    }
+
+    private static func dynamic(light: Int, dark: Int) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+            return NSColor(red: CGFloat((hex >> 16) & 0xFF) / 255,
+                           green: CGFloat((hex >> 8) & 0xFF) / 255,
+                           blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+        })
+    }
+}
+
+/// Google's four-colour "G" (96px PNG in Resources, rendered from the same
+/// SVG the web portal inlines; SwiftUI's `Path(String)` cannot parse it).
+private struct GoogleMark: View {
+    var body: some View {
+        if let url = AppResources.url("google-mark", extension: "png"), let image = NSImage(contentsOf: url) {
+            Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
+        } else {
+            Image(systemName: "globe").font(.system(size: 14))
+        }
     }
 }

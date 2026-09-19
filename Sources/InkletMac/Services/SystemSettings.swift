@@ -67,14 +67,47 @@ final class LaunchAtLogin {
 
 // MARK: - Dock
 
+/// "Show in Dock" only governs the app while it is nothing but the composer
+/// panel. Whenever a real window (Home, Settings) is on screen the Dock icon
+/// is shown regardless — a window with no Dock presence has nowhere to
+/// go when it is minimised and cannot be found from the app switcher.
+@MainActor
 enum DockVisibility {
-    /// `regular` shows in the Dock and the app switcher; `accessory` lives in
-    /// the menu bar only. Applied at launch and whenever the toggle changes.
-    static func apply(showInDock: Bool) {
-        let policy: NSApplication.ActivationPolicy = showInDock ? .regular : .accessory
+    private static var observers: [NSObjectProtocol] = []
+
+    /// Called once at launch: applies the policy and keeps it in step with
+    /// windows opening and closing.
+    static func install() {
+        let center = NotificationCenter.default
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didBecomeMainNotification,
+                     NSWindow.willCloseNotification, NSWindow.didMiniaturizeNotification,
+                     NSWindow.didDeminiaturizeNotification] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { _ in
+                // `willClose` fires while the window still counts as visible;
+                // re-evaluating on the next turn sees the window gone.
+                Task { @MainActor in refresh() }
+            })
+        }
+        refresh()
+    }
+
+    static var showInDock: Bool {
+        UserDefaults.standard.object(forKey: SystemSettings.showInDockKey) as? Bool ?? true
+    }
+
+    /// A visible window that is not the composer panel or another utility panel.
+    private static var hasMainWindow: Bool {
+        NSApp.windows.contains { window in
+            window.isVisible && !window.isMiniaturized && !(window is NSPanel)
+                && window.styleMask.contains(.titled)
+        }
+    }
+
+    static func refresh() {
+        let policy: NSApplication.ActivationPolicy = (showInDock || hasMainWindow) ? .regular : .accessory
         guard NSApp.activationPolicy() != policy else { return }
         NSApp.setActivationPolicy(policy)
-        if showInDock { NSApp.activate() }
+        if policy == .regular, hasMainWindow { NSApp.activate() }
     }
 }
 
