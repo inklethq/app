@@ -100,7 +100,7 @@ private struct AppGate: View {
             }
         }
         .task {
-            DockVisibility.apply(showInDock: UserDefaults.standard.object(forKey: SystemSettings.showInDockKey) as? Bool ?? true)
+            DockVisibility.install()
             await session.restore()
         }
         .onChange(of: session.state) { _, state in

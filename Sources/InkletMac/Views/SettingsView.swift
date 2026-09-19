@@ -71,11 +71,11 @@ private struct GeneralSettings: View {
                             .disabled(!loginItem.isAvailable)
                     }
                 }
-                SettingRow(title: "Show in Dock",
-                           subtitle: "With this off, inklet Portal lives in the menu bar only",
+                SettingRow(title: "Keep in Dock",
+                           subtitle: "With this off, the Dock icon goes away once only the composer is open",
                            showsDivider: false) {
                     Toggle("", isOn: $showInDock).labelsHidden()
-                        .onChange(of: showInDock) { _, value in DockVisibility.apply(showInDock: value) }
+                        .onChange(of: showInDock) { _, _ in DockVisibility.refresh() }
                 }
             }
 
