@@ -3,6 +3,23 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.2.2</title>
+            <pubDate>Sat, 19 Sep 2026 21:04:50 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:version>12</sparkle:version>
+            <sparkle:shortVersionString>0.2.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.2
+
+Fixes
+- Sign in with Apple and Sign in with Google buttons follow each
+  provider's brand guidelines: sizes, colours, logos, and Google Sans
+  for the Google label.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.2/inklet-portal-0.2.2-mac-universal.dmg" length="7984194" type="application/octet-stream" sparkle:edSignature="HHSVXdhbWksiXZXUgDy/nygMoBPENo8i1TIjdGOlkMBWeVBzZnUK2K9ni5Jj6GAio1yCjbU6+xgWprA81CZXAw=="/>
+        </item>
+        <item>
             <title>0.2.1</title>
             <pubDate>Sat, 19 Sep 2026 19:42:00 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
