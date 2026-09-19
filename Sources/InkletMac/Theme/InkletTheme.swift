@@ -149,10 +149,25 @@ enum BrandFonts {
 
     /// Registers bundled faces with Core Text at launch. A missing resource just
     /// leaves `isAvailable` false, so the UI degrades to the system serif.
+    /// Google Sans Medium, which Google's Sign in with Google branding
+    /// specifies for the button label (OFL, from Google Fonts).
+    private(set) nonisolated(unsafe) static var isGoogleSansAvailable = false
+
     static func register() {
-        guard let url = AppResources.url("Newsreader-Regular", extension: "ttf") else { return }
-        CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
-        isAvailable = NSFont(name: "Newsreader-Regular", size: 12) != nil
+        if let url = AppResources.url("Newsreader-Regular", extension: "ttf") {
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+            isAvailable = NSFont(name: "Newsreader-Regular", size: 12) != nil
+        }
+        if let url = AppResources.url("GoogleSans-Medium", extension: "ttf") {
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+            isGoogleSansAvailable = NSFont(name: "GoogleSans-Medium", size: 12) != nil
+        }
+    }
+
+    /// The Sign in with Google label: Google Sans Medium 14, or the system
+    /// font at the same weight when the face did not register.
+    static func googleSignIn(_ size: CGFloat) -> Font {
+        isGoogleSansAvailable ? .custom("GoogleSans-Medium", size: size) : .system(size: size, weight: .medium)
     }
 }
 
