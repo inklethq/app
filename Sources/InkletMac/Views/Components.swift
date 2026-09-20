@@ -55,7 +55,7 @@ struct DisplayFrame: View {
     /// the same paper white behind it.
     private var bare: some View {
         GeometryReader { geo in
-            screen(width: geo.size.width)
+            screen(width: geo.size.width, fit: true)
         }
         .aspectRatio(quote0Aspect, contentMode: .fit)
         .clipShape(.rect(cornerRadius: Ink.screenCorner))
@@ -114,16 +114,25 @@ struct DisplayFrame: View {
             .accessibilityLabel(title.map { "Showing \($0)" } ?? "Nothing on screen yet")
     }
 
+    /// `fit` shows the whole picture on the paper, white around it, instead of
+    /// filling the screen — what a Quote/0 does with a picture that is not its
+    /// own 2:1, so the preview and the panel agree.
     @ViewBuilder
-    private func screen(width: CGFloat) -> some View {
+    private func screen(width: CGFloat, fit: Bool = false) -> some View {
         ZStack {
             Ink.paperWhite
             if let image {
                 // The panel is greyscale and the render already matches its
                 // aspect; fill so the cutout is fully covered either way.
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFill()
+                if fit {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFill()
+                }
             } else if let title {
                 VStack(spacing: width * 0.035) {
                     if let subtitle {
