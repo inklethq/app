@@ -137,6 +137,12 @@ nonisolated public struct AnalysisEventDTO: Codable, Sendable, Equatable, Identi
     }
 }
 
+nonisolated public struct AnalysisPageDTO: Codable, Sendable {
+    public var items: [AnalysisDTO]
+    public var nextCursor: String?
+    public var hasMore: Bool?
+}
+
 nonisolated public struct AnalysisEventPageDTO: Codable, Sendable {
     public var items: [AnalysisEventDTO]
     public var nextAfter: Int?
@@ -148,6 +154,16 @@ nonisolated public struct AnalysisEventPageDTO: Codable, Sendable {
 extension JSONValue {
     public var stringValue: String? {
         if case .string(let value) = self { return value }
+        return nil
+    }
+
+    public var numberValue: Double? {
+        if case .number(let value) = self { return value }
+        return nil
+    }
+
+    public var objectValue: [String: JSONValue]? {
+        if case .object(let value) = self { return value }
         return nil
     }
 }

@@ -22,6 +22,10 @@ enum Ink {
     static let paperWhite = dynamic(light: 0xFDFCF9, dark: 0xE8E4DB)   // the e-ink sheet itself
     static let online    = dynamic(light: 0x3E8E5A, dark: 0x6FBF8B)
     static let danger    = dynamic(light: 0x8B4444, dark: 0xE0A0A0)
+    /// Something to notice that is not a failure: a retry, a blocked step.
+    static let warn      = dynamic(light: 0x9A6B2F, dark: 0xD1A05C)
+    /// A run that is still going.
+    static let working   = dynamic(light: 0xD99B4E, dark: 0xD99B4E)
 
     /// Corner radii — Tahoe rounds generously, and nested shapes stay concentric
     /// with whatever contains them.
