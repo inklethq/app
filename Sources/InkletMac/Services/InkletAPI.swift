@@ -244,6 +244,32 @@ actor InkletAPI {
         return try await authed(path)
     }
 
+    // MARK: - Analyses
+
+    /// One page of the account's runs, newest first — what History shows.
+    /// `state` and `trigger` are the backend's own filter values, or nil.
+    func analyses(state: String? = nil, trigger: String? = nil,
+                  cursor: String? = nil, limit: Int = 20) async throws -> AnalysisPageDTO {
+        var path = "api/app/v1/analyses?limit=\(min(max(limit, 1), 50))"
+        if let state { path += "&state=\(state)" }
+        if let trigger { path += "&trigger=\(trigger)" }
+        if let cursor, let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
+            path += "&cursor=\(encoded)"
+        }
+        return try await authed(path)
+    }
+
+    func analysis(id: String) async throws -> AnalysisDTO {
+        try await authed("api/app/v1/analyses/\(id)")
+    }
+
+    /// One page of a run's public events, `seq` ascending, strictly after
+    /// `after`. Carries the run's state as of the same read, so a run that
+    /// ends between polls is still seen with its last events.
+    func analysisEvents(id: String, after: Int = 0, limit: Int = 200) async throws -> AnalysisEventPageDTO {
+        try await authed("api/app/v1/analyses/\(id)/events?after=\(max(after, 0))&limit=\(min(max(limit, 1), 200))")
+    }
+
     /// Downloads a presigned asset. Not routed through the authed helpers — S3
     /// rejects requests that carry an unexpected Authorization header.
     func fetchData(from url: URL) async throws -> Data {

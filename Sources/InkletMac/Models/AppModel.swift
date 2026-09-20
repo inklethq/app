@@ -8,6 +8,9 @@ import WidgetKit
 @Observable
 final class AppModel {
     let virtualDisplays: VirtualDisplayController
+    /// The History page's runs and timelines. Its own object: the list pages
+    /// and polls on its own clock, and nothing else on this model reads it.
+    let history = HistoryModel()
     init() {
         virtualDisplays = VirtualDisplayController { path, method, body, headers in
             try await InkletAPI.shared.virtualDisplayRequest(path, method: method, body: body, headers: headers)
@@ -53,6 +56,7 @@ final class AppModel {
     func attach(session: Session) {
         self.session = session
         accountGeneration = UUID()
+        history.reset()
         if let user = session.user {
             virtualDisplays.activate(accountID: user.id)
             account = Account(dto: user)
@@ -118,7 +122,8 @@ final class AppModel {
         async let virtuals: Void = virtualDisplays.refresh()
         async let devices: Void = loadDevices()
         async let knowledge: Void = loadKnowledge()
-        _ = await (devices, knowledge, virtuals)
+        async let runs: Void = history.refreshIfLoaded()
+        _ = await (devices, knowledge, virtuals, runs)
     }
 
     private func loadDevices() async {

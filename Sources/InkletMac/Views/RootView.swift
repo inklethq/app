@@ -4,6 +4,7 @@ import InkletPresentationKit
 enum SidebarItem: Hashable {
     case home
     case knowledge
+    case history
     case newDisplay
     case virtualDisplayDetail(UUID)
     case device(String)
@@ -87,6 +88,8 @@ struct RootView: View {
             HomeView(selection: $selection)
         case .knowledge:
             KnowledgeView()
+        case .history:
+            HistoryView()
         case .virtualDisplayDetail(let id):
             NavigationStack { VirtualDisplayDetailView(id: id).id(id) }
         case .newDisplay:
@@ -125,6 +128,7 @@ private struct Sidebar: View {
                 GroupLabel("Workspace", topPadding: 4)
                 SidebarRow(icon: "house", title: "Home", item: .home, selection: $selection)
                 SidebarRow(icon: "books.vertical", title: "Knowledge", item: .knowledge, selection: $selection)
+                SidebarRow(icon: "clock.arrow.circlepath", title: "History", item: .history, selection: $selection)
 
                 GroupLabel("Displays", topPadding: 18)
                 ForEach(model.devices) { device in
