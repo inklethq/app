@@ -31,12 +31,15 @@ struct RootView: View {
                     // Without a titlebar there is nothing to push trailing items
                     // over — neither `.primaryAction` nor the default placement
                     // moves them off the leading edge. A flexible spacer is what
-                    // actually claims the gap.
-                    ToolbarSpacer(.flexible)
+                    // actually claims the gap. It is a macOS 26 API; on 15 the
+                    // trailing placement below does the job on its own.
+                    if #available(macOS 26.0, *) {
+                        ToolbarSpacer(.flexible)
+                    }
 
                     // One composer entry point for the whole window, so the popover
                     // always has a stable anchor no matter which page is showing.
-                    ToolbarItem {
+                    ToolbarItem(placement: .primaryAction) {
                         Button("Create", systemImage: "square.and.pencil") { model.startComposing() }
                             .help("Create an inklet Presentation (\(ShortcutStore.shared.shortcut.display))")
                     }

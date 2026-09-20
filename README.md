@@ -7,8 +7,9 @@ Displays and to Dot. Quote/0 panels connected through their cloud, manages
 account-owned Virtual Displays, and ships a WidgetKit extension that shows
 those Displays on the desktop.
 
-It targets macOS 26 and builds as one universal app for Apple silicon and
-Intel Macs. The product name is **inklet Portal**, matching the iOS app.
+It runs on macOS 15 (Sequoia) and later and builds as one universal app for
+Apple silicon and Intel Macs. The product name is **inklet Portal**, matching
+the iOS app.
 
 > The Electron client that previously lived in this repository is archived
 > unchanged on the `archive/electron-universal` branch and receives no further
@@ -32,8 +33,11 @@ Intel Macs. The product name is **inklet Portal**, matching the iOS app.
 
 ## Requirements
 
-- macOS 26 with full Xcode 26. Command Line Tools alone cannot build the
-  widget extension.
+- To **run**: macOS 15 or later. The one macOS 26 API the app uses
+  (`ToolbarSpacer`) is availability-gated, so the toolbar simply has no
+  grouping gaps on 15.
+- To **build**: macOS 26 with full Xcode 26. Command Line Tools alone cannot
+  build the widget extension.
 - The build uses `/Applications/Xcode.app` automatically when `DEVELOPER_DIR`
   is unset.
 

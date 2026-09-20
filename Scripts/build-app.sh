@@ -106,7 +106,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$BUILD_NUMBER</string>
   <key>CFBundleIconFile</key><string>inklet.icns</string>
-  <key>LSMinimumSystemVersion</key><string>26.0</string>
+  <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>InkletAppGroupIdentifier</key><string>$INKLET_APP_GROUP</string>
   <key>InkletWidgetStorageMode</key><string>$INKLET_WIDGET_STORAGE_MODE</string>
