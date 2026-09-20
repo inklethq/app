@@ -256,6 +256,20 @@ final class AppModel {
         }
     }
 
+    /// Claims a Quote/0 through the Dot. cloud and puts it in the list. The
+    /// list from the backend is newest first, so a fresh row goes on top; a
+    /// re-bind of one already listed replaces it in place.
+    func bindQuote0(apiKey: String, serial: String) async throws -> Device {
+        let device = Device(dto: try await InkletAPI.shared.bindQuote0(apiKey: apiKey, serial: serial))
+        if let index = devices.firstIndex(where: { $0.id == device.id }) {
+            devices[index] = device
+        } else {
+            devices.insert(device, at: 0)
+        }
+        loadPreview(for: device)
+        return device
+    }
+
     func unbind(_ device: Device) async {
         do {
             try await InkletAPI.shared.unbind(deviceID: device.id)

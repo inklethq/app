@@ -21,7 +21,7 @@ struct DeviceDetailView: View {
             historySection
         }
         .navigationTitle(device.displayName)
-        .navigationSubtitle(device.hwId)
+        .navigationSubtitle(device.identifier)
         .task(id: device.id) {
             await model.loadHistory(for: device)
             model.loadPreview(for: device)
@@ -57,7 +57,9 @@ struct DeviceDetailView: View {
                             isPresented: $confirmUnbind, titleVisibility: .visible) {
             Button("Unbind", role: .destructive) { Task { await model.unbind(device) } }
         } message: {
-            Text("The display stops receiving your content and can be claimed by another account.")
+            Text(device.kind == .quote0
+                 ? "inklet forgets the Dot. API key and stops sending to this panel. It keeps showing what it has, and the Dot. app is unaffected."
+                 : "The display stops receiving your content and can be claimed by another account.")
         }
     }
 
@@ -66,10 +68,27 @@ struct DeviceDetailView: View {
             statusHeader
         } preview: {
             DisplayFrame(image: model.preview(for: device), title: history.first?.title,
-                         subtitle: history.first?.summary, offline: !device.online)
+                         subtitle: history.first?.summary, offline: !device.online, kind: device.kind)
         } caption: {
-            Text(queueNotice ?? history.first.map { "Pushed \(relativeTime($0.createdAt))" } ?? "Nothing on screen yet")
+            // A Quote/0 has no confirm to go missing, only Dot.'s answer — and
+            // when that was a refusal it is the one thing worth saying here.
+            if queueNotice == nil, let problem = device.cloudDeliveryError {
+                Label(problem, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(Ink.danger)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text(queueNotice ?? history.first.map { "Pushed \(relativeTime($0.createdAt))" } ?? "Nothing on screen yet")
+            }
         }
+    }
+
+    /// What "sent" means on this panel: an inklet display fetches on its next
+    /// check-in; a Quote/0 gets the picture from Dot. on its next refresh.
+    private var sentNotice: String {
+        device.kind == .quote0
+            ? "Sent — Dot. shows it on the panel's next refresh"
+            : "Sent — the display refreshes on its next check-in"
     }
 
     private var statusHeader: some View {
@@ -138,22 +157,24 @@ struct DeviceDetailView: View {
                 SectionLabel("Device")
                     .padding(.top, 14)
                     .padding(.bottom, 4)
-                SpecRow(label: "Model") { Text("inklet D1") }
-                SpecRow(label: "Hardware ID") {
+                SpecRow(label: "Model") { Text(device.modelName) }
+                SpecRow(label: device.identifierLabel) {
                     // Truncated in the middle so both ends stay recognisable;
-                    // selectable and hoverable for the full 32 characters.
-                    Text(device.hwId)
+                    // selectable and hoverable for the full value.
+                    Text(device.identifier)
                         .monospaced()
                         .truncationMode(.middle)
                         .textSelection(.enabled)
-                        .help(device.hwId)
+                        .help(device.identifier)
                 }
                 SpecRow(label: "Firmware") {
                     Text(device.firmware ?? "—")
                         .truncationMode(.middle)
                         .help(device.firmware ?? "")
                 }
-                SpecRow(label: "Network") { Text(device.online ? "Online" : "Offline") }
+                SpecRow(label: device.kind == .quote0 ? "Dot. cloud" : "Network") {
+                    Text(device.online ? (device.kind == .quote0 ? "Reachable" : "Online") : (device.kind == .quote0 ? "Unreachable" : "Offline"))
+                }
                 SpecRow(label: "Last seen") { Text(relativeTime(device.lastSeenAt)) }
                 SpecRow(label: "Battery", showsDivider: false, isLast: true) {
                     // While charging the cell sits at its charge voltage, so the
@@ -210,10 +231,10 @@ struct DeviceDetailView: View {
             Text("Rename display")
                 .font(.brand(22))
                 .foregroundStyle(Ink.text)
-            TextField("Name", text: $draftName, prompt: Text(device.hwId))
+            TextField("Name", text: $draftName, prompt: Text(device.identifier))
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: 14))
-            Text("Leave empty to fall back to the hardware ID.")
+            Text(device.kind == .quote0 ? "Leave empty to fall back to the serial number." : "Leave empty to fall back to the hardware ID.")
                 .font(.system(size: 12))
                 .foregroundStyle(Ink.muted)
             HStack {
@@ -242,7 +263,7 @@ struct DeviceDetailView: View {
             defer { isAdvancing = false }
             do {
                 try await model.show(push, on: device)
-                withAnimation { queueNotice = "Sent — the display refreshes on its next check-in" }
+                withAnimation { queueNotice = sentNotice }
             } catch {
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 withAnimation { queueNotice = message }
@@ -262,9 +283,7 @@ struct DeviceDetailView: View {
             do {
                 let changed = try await model.showNext(device)
                 withAnimation {
-                    queueNotice = changed
-                        ? "Sent — the display refreshes on its next check-in"
-                        : "Nothing queued to advance to"
+                    queueNotice = changed ? sentNotice : "Nothing queued to advance to"
                 }
             } catch {
                 let message = (error as? APIError)?.errorDescription ?? error.localizedDescription

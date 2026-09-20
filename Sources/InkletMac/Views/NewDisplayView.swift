@@ -4,26 +4,49 @@ import InkletPresentationKit
 /// Registration starts with a destination type. New integrations add a choice
 /// here; registered instances all remain peers in the Displays sidebar.
 private enum DisplayConnection: String, CaseIterable, Identifiable {
-    case hardware, virtual
+    case hardware, virtual, quote0
     var id: Self { self }
-    var title: String { self == .hardware ? "Hardware Display" : "Virtual Display" }
-    var symbol: String { self == .hardware ? "rectangle.inset.filled" : "macwindow" }
-    var description: String {
-        self == .hardware
-            ? "Pair an inklet display and give your ideas a place in the room."
-            : "Create a display for a Widget on your Mac, iPhone, or iPad."
+    var title: String {
+        switch self {
+        case .hardware: "Hardware Display"
+        case .virtual: "Virtual Display"
+        case .quote0: "Quote/0"
+        }
     }
-    var action: String { self == .hardware ? "Pair a display" : "Choose a canvas" }
+    var symbol: String {
+        switch self {
+        case .hardware: "rectangle.inset.filled"
+        case .virtual: "macwindow"
+        case .quote0: "cloud"
+        }
+    }
+    var description: String {
+        switch self {
+        case .hardware: "Pair an inklet display and give your ideas a place in the room."
+        case .virtual: "Create a display for a Widget on your Mac, iPhone, or iPad."
+        case .quote0: "Connect a Dot. Quote/0 through its own cloud. Nothing to flash, nothing to tap."
+        }
+    }
+    var action: String {
+        switch self {
+        case .hardware: "Pair a display"
+        case .virtual: "Choose a canvas"
+        case .quote0: "Connect with an API key"
+        }
+    }
 }
 
 struct NewDisplayView: View {
     @Binding var selection: SidebarItem?
     @State private var creatingVirtual = false
+    @State private var connectingQuote0 = false
 
     var body: some View {
         Group {
             if creatingVirtual {
                 MacVirtualDisplaySetupView(onBack: { creatingVirtual = false }, onCreated: { selection = .virtualDisplayDetail($0) })
+            } else if connectingQuote0 {
+                Quote0SetupView(onBack: { connectingQuote0 = false }, onConnected: { selection = .device($0) })
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 28) {
@@ -33,12 +56,15 @@ struct NewDisplayView: View {
                             Text("Choose how you’d like to bring inklet into view.")
                                 .font(.system(size: 14)).foregroundStyle(Ink.secondary)
                         }
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 18), GridItem(.flexible(), spacing: 18)], spacing: 18) {
+                        // Adaptive: three cards fit in one row at the page's
+                        // full width and wrap to two-plus-one in a narrow window.
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 18)], spacing: 18) {
                             ForEach(DisplayConnection.allCases) { connection in
                                 DisplayConnectionCard(connection: connection) {
                                     switch connection {
                                     case .hardware: selection = .pair
                                     case .virtual: creatingVirtual = true
+                                    case .quote0: connectingQuote0 = true
                                     }
                                 }
                             }
@@ -166,5 +192,130 @@ private struct MacVirtualDisplaySetupView: View {
         .scrollIndicators(.never).foregroundStyle(Ink.text).background(Ink.bg)
         .onChange(of: name) { _, _ in id = UUID() }
         .onChange(of: profile) { _, _ in id = UUID() }
+    }
+}
+
+/// Connecting a Quote/0: a Dot. API key and the panel's serial number, which
+/// the backend proves against the Dot. cloud and seals. The key lives in this
+/// form's state for exactly as long as the request takes.
+private struct Quote0SetupView: View {
+    @Environment(AppModel.self) private var model
+    let onBack: () -> Void
+    let onConnected: (String) -> Void
+    @State private var apiKey = ""
+    @State private var serial = ""
+    @State private var isConnecting = false
+    @State private var error: String?
+
+    private var trimmedKey: String { apiKey.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var trimmedSerial: String { serial.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var canConnect: Bool { !isConnecting && !trimmedKey.isEmpty && !trimmedSerial.isEmpty }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Button(action: onBack) { Label("Display types", systemImage: "chevron.left") }
+                    .buttonStyle(.plain).font(.system(size: 13)).foregroundStyle(Ink.secondary)
+                    .disabled(isConnecting)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Connect a Quote/0").font(.brand(34)).foregroundStyle(Ink.text)
+                    Text("inklet sends pictures to the panel through the Dot. cloud, so the panel keeps its own firmware and app.")
+                        .font(.system(size: 14)).foregroundStyle(Ink.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                InkCard(padding: 18) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        SectionLabel("In the Dot. app first")
+                        step(1, "Add an “Image API” item to this panel's loop task in Content Studio. Without it, Dot. refuses every picture.")
+                        step(2, "More → API Key → Create. Copy the key; it starts with dot_app_.")
+                        step(3, "Open the device and copy its Device Serial Number.")
+                    }
+                }
+
+                InkCard(padding: 20) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            SectionLabel("Dot. API key")
+                            SecureField("dot_app_…", text: $apiKey)
+                                .textFieldStyle(.plain).font(.system(size: 15, design: .monospaced))
+                                .padding(12).background(Ink.input, in: .rect(cornerRadius: Ink.controlCorner))
+                                .accessibilityLabel("Dot. API key")
+                            Text("Stored encrypted on the inklet server, never shown again. Revoke it in the Dot. app at any time.")
+                                .font(.system(size: 12)).foregroundStyle(Ink.muted)
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            SectionLabel("Serial number")
+                            TextField("ABCD1234ABCD", text: $serial)
+                                .textFieldStyle(.plain).font(.system(size: 15, design: .monospaced))
+                                .autocorrectionDisabled()
+                                .padding(12).background(Ink.input, in: .rect(cornerRadius: Ink.controlCorner))
+                                .accessibilityLabel("Serial number")
+                        }
+                    }
+                }.disabled(isConnecting)
+
+                if let error {
+                    Text(error).font(.system(size: 13)).foregroundStyle(Ink.danger)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Button {
+                    connect()
+                } label: {
+                    HStack(spacing: 9) {
+                        Text(isConnecting ? "Connecting…" : "Connect Quote/0")
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.system(size: 14, weight: .medium)).foregroundStyle(Ink.bg)
+                    .padding(.horizontal, 20).padding(.vertical, 13)
+                    .background(Ink.text, in: .rect(cornerRadius: Ink.controlCorner))
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canConnect)
+            }
+            .frame(maxWidth: 820, alignment: .leading).padding(32)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .scrollIndicators(.never).foregroundStyle(Ink.text).background(Ink.bg)
+    }
+
+    private func connect() {
+        guard canConnect else { return }
+        guard trimmedKey.hasPrefix("dot_app_") else {
+            error = "That doesn't look like a Dot. API key — they start with dot_app_."
+            return
+        }
+        isConnecting = true
+        error = nil
+        let key = trimmedKey
+        let serialNumber = trimmedSerial
+        Task {
+            defer { isConnecting = false }
+            do {
+                let device = try await model.bindQuote0(apiKey: key, serial: serialNumber)
+                // Done with the key; drop it from the form before leaving.
+                apiKey = ""
+                onConnected(device.id)
+            } catch {
+                self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
+        }
+    }
+
+    private func step(_ number: Int, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text("\(number)")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Ink.bg)
+                .frame(width: 20, height: 20)
+                .background(Ink.text, in: .circle)
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundStyle(Ink.text)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
     }
 }

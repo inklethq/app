@@ -271,12 +271,18 @@ private struct DisplayCard: View {
     var body: some View {
         InkCard(padding: 14) {
             VStack(alignment: .leading, spacing: 12) {
-                DisplayFrame(image: preview, offline: !device.online)
+                DisplayFrame(image: preview, offline: !device.online, kind: device.kind)
                 HStack(spacing: 7) {
                     StatusDot(online: device.online)
                     Text(device.displayName)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Ink.text)
+                    if device.kind == .quote0 {
+                        Image(systemName: "cloud")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Ink.muted)
+                            .help("Quote/0, through the Dot. cloud")
+                    }
                     Spacer()
                     if device.charging {
                         Image(systemName: "bolt.fill")
@@ -286,11 +292,19 @@ private struct DisplayCard: View {
                     BatteryLabel(level: device.battery, iconOnly: true)
                         .font(.system(size: 13))
                 }
-                Text(device.online
-                     ? "Pushed \(relativeTime(device.latestPushAt))"
-                     : "Last seen \(relativeTime(device.lastSeenAt))")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Ink.muted)
+                if let problem = device.cloudDeliveryError {
+                    Text(problem)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Ink.danger)
+                        .lineLimit(2)
+                        .help(problem)
+                } else {
+                    Text(device.online
+                         ? "Pushed \(relativeTime(device.latestPushAt))"
+                         : "Last seen \(relativeTime(device.lastSeenAt))")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Ink.muted)
+                }
             }
         }
         .contentShape(.rect)

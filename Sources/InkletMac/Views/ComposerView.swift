@@ -538,7 +538,7 @@ private struct ComposerTargetPicker: View {
             Label("Let inklet choose", systemImage: "sparkles").tag(AppModel.ComposeTarget.agent)
             if !devices.isEmpty {
                 Divider()
-                ForEach(devices) { Label($0.displayName, systemImage: "rectangle.on.rectangle").tag(AppModel.ComposeTarget.hardware($0.id)) }
+                ForEach(devices) { Label($0.displayName, systemImage: $0.kind == .quote0 ? "cloud" : "rectangle.on.rectangle").tag(AppModel.ComposeTarget.hardware($0.id)) }
             }
             if !controller.displays.isEmpty {
                 Divider()

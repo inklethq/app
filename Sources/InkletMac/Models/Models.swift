@@ -5,8 +5,17 @@ import InkletPresentationKit
 // so the UI never deals with optional strings, snake_case, or RFC3339 parsing.
 
 struct Device: Identifiable, Hashable {
+    /// What kind of panel this is, decided by how the backend reaches it.
+    enum Kind: Hashable {
+        /// inklet hardware: paired by NFC, polls over MQTT.
+        case inklet
+        /// A Dot. Quote/0: bound with an API key, pushed through the Dot. cloud.
+        case quote0
+    }
+
     let id: String
     var hwId: String
+    var kind: Kind
     var nickname: String?
     var firmware: String?
     var battery: Int?
@@ -15,16 +24,44 @@ struct Device: Identifiable, Hashable {
     var lastSeenAt: Date?
     var latestPushID: String?
     var latestPushAt: Date?
+    /// The vendor's identifier for a Quote/0 — its serial number.
+    var cloudDeviceID: String?
+    var cloudModel: String?
+    /// Why the last picture did not reach a Quote/0, in the backend's words.
+    /// A cloud panel has no confirm to go missing, only an HTTP answer, and
+    /// this is where a refusal lands. Nil after a success.
+    var cloudDeliveryError: String?
+    var cloudDeliveryErrorAt: Date?
 
-    /// Nickname when set, hardware id otherwise — same rule as the iOS client.
+    /// Nickname when set, otherwise the identifier a user would recognise:
+    /// the serial number for a Quote/0, the hardware id for inklet hardware.
     var displayName: String {
         if let nickname, !nickname.isEmpty { return nickname }
+        return identifier
+    }
+
+    /// The stable id printed on the panel: hardware id, or the Dot. serial.
+    var identifier: String {
+        if kind == .quote0, let serial = cloudDeviceID, !serial.isEmpty { return serial }
         return hwId
     }
+
+    var identifierLabel: String { kind == .quote0 ? "Serial" : "Hardware ID" }
+
+    var modelName: String {
+        switch kind {
+        case .inklet: "inklet D1"
+        case .quote0: "Quote/0"
+        }
+    }
+
+    /// Sidebar and picker glyph.
+    var symbol: String { kind == .quote0 ? "cloud" : "rectangle.inset.filled" }
 
     init(dto: DeviceDTO) {
         id = dto.id
         hwId = dto.hwId
+        kind = dto.transport == "dot_cloud" ? .quote0 : .inklet
         nickname = dto.nickname
         firmware = dto.firmware
         battery = dto.battery
@@ -33,6 +70,10 @@ struct Device: Identifiable, Hashable {
         lastSeenAt = InkletTime.parse(dto.lastSeenAt)
         latestPushID = dto.latestPushId
         latestPushAt = InkletTime.parse(dto.latestPushAt)
+        cloudDeviceID = dto.cloudDeviceId
+        cloudModel = dto.cloudModel
+        cloudDeliveryError = dto.cloudDeliveryError.flatMap { $0.isEmpty ? nil : $0 }
+        cloudDeliveryErrorAt = InkletTime.parse(dto.cloudDeliveryErrorAt)
     }
 }
 

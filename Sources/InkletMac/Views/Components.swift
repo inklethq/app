@@ -32,13 +32,44 @@ struct DisplayFrame: View {
     var title: String?
     var subtitle: String?
     var offline = false
+    /// Which panel to draw. The D1 gets its bezel; a Quote/0 is a bare
+    /// 296×152 panel in a thin frame — there is no bezel art for it, and a
+    /// D1 bezel around a 2:1 picture would just lie about the hardware.
+    var kind: Device.Kind = .inklet
 
     private let aspect: CGFloat = 2303.0 / 1664.0
     private let screenInsetX: CGFloat = 0.048
     private let screenInsetTop: CGFloat = 0.066
     private let screenInsetBottom: CGFloat = 0.186
 
+    private let quote0Aspect: CGFloat = 296.0 / 152.0
+
     var body: some View {
+        switch kind {
+        case .inklet: bezelled
+        case .quote0: bare
+        }
+    }
+
+    /// The Quote/0: the picture at the panel's own aspect, a hairline frame,
+    /// the same paper white behind it.
+    private var bare: some View {
+        GeometryReader { geo in
+            screen(width: geo.size.width)
+        }
+        .aspectRatio(quote0Aspect, contentMode: .fit)
+        .clipShape(.rect(cornerRadius: Ink.screenCorner))
+        .overlay { RoundedRectangle(cornerRadius: Ink.screenCorner).strokeBorder(Ink.border, lineWidth: 1) }
+        .padding(6)
+        .background(Ink.card, in: .rect(cornerRadius: Ink.screenCorner + 6))
+        .overlay { RoundedRectangle(cornerRadius: Ink.screenCorner + 6).strokeBorder(Ink.border, lineWidth: 1) }
+        .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
+        .opacity(offline ? 0.6 : 1)
+        .accessibilityElement()
+        .accessibilityLabel(title.map { "Showing \($0)" } ?? "Nothing on screen yet")
+    }
+
+    private var bezelled: some View {
         Color.clear
             .aspectRatio(aspect, contentMode: .fit)
             .background {

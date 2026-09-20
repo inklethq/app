@@ -50,6 +50,20 @@ struct DeviceDTO: Codable, Sendable {
     var stateUpdatedAt: String?
     var latestPushId: String?
     var latestPushAt: String?
+    /// `mqtt` for inklet hardware, `dot_cloud` for a Quote/0 pushed through the
+    /// Dot. cloud. Absent on a backend older than that column — treated as `mqtt`.
+    var transport: String?
+    var cloudDeviceId: String?
+    var cloudModel: String?
+    var cloudDeliveryError: String?
+    var cloudDeliveryErrorAt: String?
+}
+
+/// `POST /api/devices/quote0` — the NFC bind's shape, so the app has one
+/// "device claimed" type.
+struct Quote0BindResponseDTO: Codable, Sendable {
+    var device: DeviceDTO
+    var status: String?
 }
 
 // MARK: - Time
