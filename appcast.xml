@@ -3,6 +3,40 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.2.4-alpha.1</title>
+            <pubDate>Sun, 20 Sep 2026 06:58:15 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:channel>beta</sparkle:channel>
+            <sparkle:version>14</sparkle:version>
+            <sparkle:shortVersionString>0.2.4-alpha.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.4 Alpha 1
+
+Highlights
+- Quote/0: connect a Dot. Quote/0 as a third display type under New
+  Display, with a Dot. API key and the panel's serial number. inklet
+  sends every picture through the Dot. cloud; nothing to flash, nothing
+  to tap. The panel then works like any other display: push to it from
+  the composer, let inklet choose it, advance its queue, bring back an
+  earlier picture.
+- Quote/0 panels are drawn at their own 296x152 shape, show a "Dot.
+  cloud" reachability row and the reason when Dot. refused a picture.
+
+Requirements
+- The inklet backend must be at the release that serves
+  POST /api/devices/quote0 and has DEVICE_CLOUD_CREDENTIAL_KEYS set;
+  until then connecting a Quote/0 reports that it is not enabled yet.
+- In the Dot. app, the panel's loop task needs an "Image API" item, or
+  Dot. refuses every picture.
+
+Known limitations
+- Alpha quality; requires macOS 26.
+- Pre-release build: it lands on the beta update channel.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.4-alpha.1/inklet-portal-0.2.4-alpha.1-mac-universal.dmg" length="8109342" type="application/octet-stream" sparkle:edSignature="YrUZRtb53HB68PA1UwD2uz/gKxymtFxjbYkoumYWqGLub1jPkDhZd2JygoiSU4Ql1/hnMHLVQisY0pRw2ar3Cg=="/>
+        </item>
+        <item>
             <title>0.2.3</title>
             <pubDate>Sat, 19 Sep 2026 21:18:06 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
