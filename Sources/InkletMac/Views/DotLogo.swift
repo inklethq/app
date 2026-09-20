@@ -36,3 +36,21 @@ struct DotLogo: Shape {
         return path
     }
 }
+
+extension DotLogo {
+    /// The mark as a template image, for the places that take an image rather
+    /// than a view — menu rows and pickers, which AppKit draws itself. Drawn
+    /// by a handler, so it is rasterised again at whatever scale it is shown.
+    @MainActor
+    static func nsImage(pointSize: CGFloat) -> NSImage {
+        let image = NSImage(size: NSSize(width: pointSize, height: pointSize), flipped: true) { rect in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            context.addPath(DotLogo().path(in: rect).cgPath)
+            context.setFillColor(NSColor.black.cgColor)
+            context.fillPath()
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
+}

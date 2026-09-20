@@ -135,7 +135,7 @@ private struct Sidebar: View {
                     // `display` draws a monitor on a stand, so its panel is small
                     // and sits high. This one is a bare 4:3 frame — much closer to
                     // the real thing, which is a flat panel with no base.
-                    SidebarRow(icon: device.symbol, title: device.displayName,
+                    SidebarRow(icon: device.icon, title: device.displayName,
                                item: .device(device.id), selection: $selection) {
                         StatusDot(online: device.online, size: 7)
                     }
@@ -194,7 +194,7 @@ private struct GroupLabel: View {
 /// Selection is drawn by hand: macOS paints List selection with the system accent
 /// color, and an app-level accent needs an asset catalog we can't build without Xcode.
 private struct SidebarRow<Accessory: View>: View {
-    let icon: String
+    let icon: Image
     let title: String
     let item: SidebarItem
     @Binding var selection: SidebarItem?
@@ -205,12 +205,29 @@ private struct SidebarRow<Accessory: View>: View {
 
     private var isSelected: Bool { selection == item }
 
+    /// Most rows are an SF Symbol; a device row brings its own image.
+    init(icon symbol: String, title: String, item: SidebarItem,
+         selection: Binding<SidebarItem?>, dim: Bool = false, @ViewBuilder accessory: () -> Accessory) {
+        self.init(icon: Image(systemName: symbol), title: title, item: item,
+                  selection: selection, dim: dim, accessory: accessory)
+    }
+
+    init(icon: Image, title: String, item: SidebarItem,
+         selection: Binding<SidebarItem?>, dim: Bool = false, @ViewBuilder accessory: () -> Accessory) {
+        self.icon = icon
+        self.title = title
+        self.item = item
+        self._selection = selection
+        self.dim = dim
+        self.accessory = accessory()
+    }
+
     var body: some View {
         Button {
             selection = item
         } label: {
             HStack(spacing: 9) {
-                Image(systemName: icon)
+                icon
                     .font(.system(size: 13))
                     .frame(width: 17)
                 Text(title)
@@ -240,6 +257,11 @@ private struct SidebarRow<Accessory: View>: View {
 
 extension SidebarRow where Accessory == EmptyView {
     init(icon: String, title: String, item: SidebarItem,
+         selection: Binding<SidebarItem?>, dim: Bool = false) {
+        self.init(icon: icon, title: title, item: item, selection: selection, dim: dim) { EmptyView() }
+    }
+
+    init(icon: Image, title: String, item: SidebarItem,
          selection: Binding<SidebarItem?>, dim: Bool = false) {
         self.init(icon: icon, title: title, item: item, selection: selection, dim: dim) { EmptyView() }
     }

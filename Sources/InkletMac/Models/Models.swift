@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import InkletPresentationKit
 
 // View-facing models. Each one is built from the matching wire type in Wire.swift
@@ -55,8 +56,14 @@ struct Device: Identifiable, Hashable {
         }
     }
 
-    /// Sidebar and picker glyph.
-    var symbol: String { kind == .quote0 ? "cloud" : "rectangle.inset.filled" }
+    /// Sidebar and picker glyph: an SF Symbol for inklet hardware, Dot.'s own
+    /// mark for a Quote/0. An image rather than a symbol name so the rows
+    /// AppKit draws — menus, pickers — can carry the mark too.
+    @MainActor var icon: Image {
+        kind == .quote0
+            ? Image(nsImage: DotLogo.nsImage(pointSize: 13))
+            : Image(systemName: "rectangle.inset.filled")
+    }
 
     init(dto: DeviceDTO) {
         id = dto.id

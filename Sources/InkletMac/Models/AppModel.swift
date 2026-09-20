@@ -264,7 +264,10 @@ final class AppModel {
     /// Claims a Quote/0 through the Dot. cloud and puts it in the list. The
     /// list from the backend is newest first, so a fresh row goes on top; a
     /// re-bind of one already listed replaces it in place.
-    func bindQuote0(apiKey: String, serial: String) async throws -> Device {
+    /// Binds the panel, then names it. Two requests: the bind route takes no
+    /// name, and a name that fails to stick is a rename away — the bind is the
+    /// part that must not be lost. An empty name leaves the serial number.
+    func bindQuote0(apiKey: String, serial: String, nickname: String = "") async throws -> Device {
         let device = Device(dto: try await InkletAPI.shared.bindQuote0(apiKey: apiKey, serial: serial))
         if let index = devices.firstIndex(where: { $0.id == device.id }) {
             devices[index] = device
@@ -272,8 +275,13 @@ final class AppModel {
             devices.insert(device, at: 0)
         }
         loadPreview(for: device)
-        return device
+        let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty {
+            await rename(device, to: name)
+        }
+        return devices.first { $0.id == device.id } ?? device
     }
+
 
     func unbind(_ device: Device) async {
         do {
