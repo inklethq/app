@@ -28,6 +28,16 @@ final class AppModel {
     var composerVirtualTargetID: UUID?
     var composerTarget: Device?             // set when pushing from a device page
 
+    /// Where the sidebar should go next, for pages that cannot reach the
+    /// selection themselves. The root view takes it and clears it.
+    var requestedSidebarItem: SidebarItem?
+
+    /// Opens a run's timeline on the History page, from anywhere.
+    func openRun(_ analysisID: String) {
+        history.requestOpen(analysisID)
+        requestedSidebarItem = .history
+    }
+
     /// What was in front when the composer was summoned. Offered as a grey
     /// suggestion — never written into the field on its own.
     var suggestion: Capture?
@@ -281,7 +291,6 @@ final class AppModel {
         }
         return devices.first { $0.id == device.id } ?? device
     }
-
 
     func unbind(_ device: Device) async {
         do {

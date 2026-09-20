@@ -101,7 +101,9 @@ struct Push: Identifiable, Hashable {
             case .preparing: "Preparing"
             case .queued: "Queued"
             case .published: "Published"
-            case .confirmed: "Confirmed"
+            // The panel said so; and the backend expires it the moment a newer
+            // picture takes its place, so only one row ever says this.
+            case .confirmed: "Showing"
             case .expired: "Expired"
             case .failed: "Failed"
             }
@@ -118,6 +120,8 @@ struct Push: Identifiable, Hashable {
     var imageURL: URL?
     /// `direct` means the picture went up untouched; `ai` means inklet laid it out.
     var mode: String
+    /// The run that produced it — where History replays what happened.
+    let analysisID: String?
 
     /// `POST /displays/{id}/current` accepts a rendered Presentation of this
     /// panel, including an expired one; the current one is already on screen.
@@ -134,6 +138,7 @@ struct Push: Identifiable, Hashable {
         createdAt = InkletTime.parse(dto.createdAt) ?? .now
         imageURL = dto.image.flatMap { URL(string: $0.url) }
         mode = dto.mode
+        analysisID = dto.analysisId
     }
 }
 

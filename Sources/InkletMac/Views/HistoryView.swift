@@ -14,9 +14,13 @@ struct HistoryView: View {
     var body: some View {
         @Bindable var history = model.history
         VStack(alignment: .leading, spacing: 0) {
-            if let openID, let analysis = history.analysis(openID) {
-                HistoryDetail(analysis: analysis, history: history, displayNames: displayNames) {
-                    self.openID = nil
+            if let openID {
+                if let analysis = history.analysis(openID) {
+                    HistoryDetail(analysis: analysis, history: history, displayNames: displayNames) {
+                        self.openID = nil
+                    }
+                } else {
+                    opening(history)
                 }
             } else {
                 masthead
@@ -27,12 +31,36 @@ struct HistoryView: View {
         .background(Ink.bg)
         .navigationTitle("History")
         .task { await model.history.loadIfNeeded() }
+        // A run the list does not hold — opened from a device's history, or
+        // from a page the filters hide — is read on its own.
+        .task(id: openID) {
+            if let openID { await model.history.ensure(openID) }
+        }
+        .onChange(of: history.requestedOpenID, initial: true) { _, id in
+            guard let id else { return }
+            openID = id
+            model.history.requestedOpenID = nil
+        }
         .onChange(of: history.stateFilter) { _, _ in Task { await model.history.load() } }
         .onChange(of: history.triggerFilter) { _, _ in Task { await model.history.load() } }
-        // A run that fell off the list (a filter change) cannot stay open.
-        .onChange(of: history.items.map(\.id)) { _, ids in
-            if let openID, !ids.contains(openID) { self.openID = nil }
+    }
+
+    /// The detail's frame while the run it was asked for is still being read.
+    private func opening(_ history: HistoryModel) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Button { openID = nil } label: {
+                Label("History", systemImage: "chevron.left")
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: 13))
+            .foregroundStyle(Ink.secondary)
+            Text(history.openError ?? "Loading…")
+                .font(.system(size: 13))
+                .foregroundStyle(history.openError == nil ? Ink.muted : Ink.danger)
+            Spacer()
         }
+        .padding(.horizontal, 28)
+        .padding(.top, 18)
     }
 
     /// The delivery rows name the panel the user named, when the account's

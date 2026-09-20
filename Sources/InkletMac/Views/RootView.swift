@@ -64,6 +64,13 @@ struct RootView: View {
         .onChange(of: virtuals.displays.map(\.id)) { _, ids in
             if case .virtualDisplayDetail(let id) = selection, !ids.contains(id), !virtuals.busy { selection = .home }
         }
+        // Pages that cannot reach this selection ask through the model: a
+        // device page sending the user to the run behind a picture.
+        .onChange(of: model.requestedSidebarItem) { _, item in
+            guard let item else { return }
+            selection = item
+            model.requestedSidebarItem = nil
+        }
         .onChange(of: widgetRouter.pending, initial: true) { _, destination in
             guard let destination else { return }
             widgetRouter.pending = nil
