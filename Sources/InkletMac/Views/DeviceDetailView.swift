@@ -29,7 +29,10 @@ struct DeviceDetailView: View {
         .toolbar {
             // Splits this page's device actions off the window-level Push button
             // into their own glass group, so the grouping matches the scope.
-            ToolbarSpacer(.fixed, placement: .primaryAction)
+            // macOS 26 only; on 15 the groups just sit side by side.
+            if #available(macOS 26.0, *) {
+                ToolbarSpacer(.fixed, placement: .primaryAction)
+            }
 
             ToolbarItemGroup(placement: .primaryAction) {
                 Button("Show Next", systemImage: "forward.end") { showNext() }

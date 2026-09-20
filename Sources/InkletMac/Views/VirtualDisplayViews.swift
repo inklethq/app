@@ -77,7 +77,9 @@ struct VirtualDisplayDetailView: View {
                 .navigationTitle(display.name)
                 .navigationSubtitle(id.uuidString.lowercased())
                 .toolbar {
-                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                    if #available(macOS 26.0, *) {
+                        ToolbarSpacer(.fixed, placement: .primaryAction)
+                    }
                     ToolbarItem(placement: .primaryAction) {
                         Menu("Actions", systemImage: "ellipsis.circle") {
                             Button("Push Here…") { model.startComposing(virtualDisplayID: id) }
