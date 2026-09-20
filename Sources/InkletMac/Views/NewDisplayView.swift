@@ -13,18 +13,24 @@ private enum DisplayConnection: String, CaseIterable, Identifiable {
         case .quote0: "Quote/0"
         }
     }
-    var symbol: String {
+    /// The mark on the card. SF Symbols for ours; for the Quote/0, Dot.'s own
+    /// logo — the card is about their product, and a generic cloud glyph said
+    /// nothing about which one.
+    @ViewBuilder var icon: some View {
         switch self {
-        case .hardware: "rectangle.inset.filled"
-        case .virtual: "macwindow"
-        case .quote0: "cloud"
+        case .hardware:
+            Image(systemName: "rectangle.inset.filled").font(.system(size: 40, weight: .ultraLight))
+        case .virtual:
+            Image(systemName: "macwindow").font(.system(size: 40, weight: .ultraLight))
+        case .quote0:
+            DotLogo().frame(width: 38, height: 38)
         }
     }
     var description: String {
         switch self {
         case .hardware: "Pair an inklet display and give your ideas a place in the room."
         case .virtual: "Create a display for a Widget on your Mac, iPhone, or iPad."
-        case .quote0: "Connect a Dot. Quote/0 through its own cloud. Nothing to flash, nothing to tap."
+        case .quote0: "Connect a Dot. Quote/0 through its own cloud."
         }
     }
     var action: String {
@@ -89,8 +95,7 @@ private struct DisplayConnectionCard: View {
         Button(action: action) {
             InkCard(padding: 26) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Image(systemName: connection.symbol)
-                        .font(.system(size: 40, weight: .ultraLight))
+                    connection.icon
                         .frame(height: 64, alignment: .leading)
                     Spacer(minLength: 26)
                     Text(connection.title).font(.brand(27))
