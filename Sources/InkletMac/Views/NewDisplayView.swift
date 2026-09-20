@@ -207,11 +207,13 @@ private struct Quote0SetupView: View {
     @Environment(AppModel.self) private var model
     let onBack: () -> Void
     let onConnected: (String) -> Void
+    @State private var name = ""
     @State private var apiKey = ""
     @State private var serial = ""
     @State private var isConnecting = false
     @State private var error: String?
 
+    private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var trimmedKey: String { apiKey.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var trimmedSerial: String { serial.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var canConnect: Bool { !isConnecting && !trimmedKey.isEmpty && !trimmedSerial.isEmpty }
@@ -240,6 +242,17 @@ private struct Quote0SetupView: View {
 
                 InkCard(padding: 20) {
                     VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            SectionLabel("Name")
+                            TextField("Kitchen", text: $name)
+                                .textFieldStyle(.plain).font(.system(size: 15))
+                                .padding(12).background(Ink.input, in: .rect(cornerRadius: Ink.controlCorner))
+                                .accessibilityLabel("Name")
+                            // A serial number tells the agent nothing about where
+                            // the panel is or what it is for.
+                            Text("What you and inklet call it when choosing where a card goes. Blank keeps the serial number.")
+                                .font(.system(size: 12)).foregroundStyle(Ink.muted)
+                        }
                         VStack(alignment: .leading, spacing: 10) {
                             SectionLabel("Dot. API key")
                             SecureField("dot_app_…", text: $apiKey)
@@ -296,10 +309,11 @@ private struct Quote0SetupView: View {
         error = nil
         let key = trimmedKey
         let serialNumber = trimmedSerial
+        let nickname = trimmedName
         Task {
             defer { isConnecting = false }
             do {
-                let device = try await model.bindQuote0(apiKey: key, serial: serialNumber)
+                let device = try await model.bindQuote0(apiKey: key, serial: serialNumber, nickname: nickname)
                 // Done with the key; drop it from the form before leaving.
                 apiKey = ""
                 onConnected(device.id)

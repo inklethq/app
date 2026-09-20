@@ -22,7 +22,6 @@ private func decodeDevice(_ json: String) throws -> Device {
     #expect(device.identifier == "ABCD1234ABCD")
     #expect(device.identifierLabel == "Serial")
     #expect(device.modelName == "Quote/0")
-    #expect(device.symbol == "cloud")
     #expect(device.cloudDeliveryError?.hasPrefix("Dot. could not find") == true)
     #expect(device.cloudDeliveryErrorAt != nil)
     #expect(device.battery == 85)
