@@ -128,7 +128,7 @@ private struct Sidebar: View {
                     // `display` draws a monitor on a stand, so its panel is small
                     // and sits high. This one is a bare 4:3 frame — much closer to
                     // the real thing, which is a flat panel with no base.
-                    SidebarRow(icon: "rectangle.inset.filled", title: device.displayName,
+                    SidebarRow(icon: device.symbol, title: device.displayName,
                                item: .device(device.id), selection: $selection) {
                         StatusDot(online: device.online, size: 7)
                     }

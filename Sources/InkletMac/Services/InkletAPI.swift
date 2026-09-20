@@ -27,6 +27,45 @@ enum APIError: LocalizedError, Sendable {
     }
 }
 
+/// Why `POST /api/devices/quote0` refused, in the words the setup form shows.
+/// One case per backend code; the wording is ours, the codes are the contract
+/// (inklet-backend docs/api/quote0.md §3).
+enum Quote0BindError: LocalizedError, Equatable, Sendable {
+    case invalidKey
+    case notInAccount
+    case alreadyBound
+    case rateLimited
+    case dotUnavailable
+    case unavailable
+    case other(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidKey: "Dot. didn't accept that API key. Create one in the Dot. app under More → API Key and paste it whole."
+        case .notInAccount: "That serial number isn't a display in this Dot. account. Check it under the device in the Dot. app."
+        case .alreadyBound: "That display is already connected to another inklet account."
+        case .rateLimited: "Dot. is rate limiting this key. Wait a moment and try again."
+        case .dotUnavailable: "Dot. isn't answering right now. Try again in a minute."
+        case .unavailable: "Quote/0 isn't enabled on this inklet server yet."
+        case .other(let message): message
+        }
+    }
+
+    /// The backend's `code` decides; the message is a fallback for a code this
+    /// build does not know.
+    static func from(status: Int, code: String?, message: String?) -> Quote0BindError {
+        switch code {
+        case "INVALID_DOT_API_KEY": .invalidKey
+        case "DOT_DEVICE_NOT_FOUND": .notInAccount
+        case "DEVICE_ALREADY_BOUND": .alreadyBound
+        case "DOT_RATE_LIMITED": .rateLimited
+        case "DOT_UNAVAILABLE": .dotUnavailable
+        case "QUOTE0_UNAVAILABLE": .unavailable
+        default: .other(message ?? "The display couldn't be connected (\(status)).")
+        }
+    }
+}
+
 /// The one place that talks to the backend.
 ///
 /// An actor because token refresh has to be serialised: several screens load at
@@ -157,6 +196,26 @@ actor InkletAPI {
 
     func unbind(deviceID: String) async throws {
         try await authedVoid("api/devices/\(deviceID)/unbind", method: "POST")
+    }
+
+    /// `POST /api/devices/quote0`: claim a Dot. Quote/0 with an API key and its
+    /// serial number. The key travels once, in this body, and is not kept —
+    /// the backend seals it; nothing here logs the request.
+    func bindQuote0(apiKey: String, serial: String) async throws -> DeviceDTO {
+        let (data, status) = try await authedResponse("api/devices/quote0", method: "POST",
+                                                      json: ["apiKey": apiKey, "serial": serial])
+        switch status {
+        case 200...299:
+            guard let response = try? JSONDecoder().decode(Quote0BindResponseDTO.self, from: data) else {
+                throw APIError.decoding
+            }
+            return response.device
+        case 401:
+            throw APIError.sessionExpired
+        default:
+            let envelope = serverError(data)
+            throw Quote0BindError.from(status: status, code: envelope.code, message: envelope.message)
+        }
     }
 
     /// `POST /api/app/v1/displays/{id}/advance`: show the next queued item.

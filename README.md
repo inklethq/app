@@ -3,8 +3,9 @@
 The native SwiftUI client for inklet. It signs in with an inklet account
 (password, Google, or Apple),
 composes Content from text, links, images, and files, sends it to inklet
-Displays, manages account-owned Virtual Displays, and ships a WidgetKit
-extension that shows those Displays on the desktop.
+Displays and to Dot. Quote/0 panels connected through their cloud, manages
+account-owned Virtual Displays, and ships a WidgetKit extension that shows
+those Displays on the desktop.
 
 It targets macOS 26 and builds as one universal app for Apple silicon and
 Intel Macs. The product name is **inklet Portal**, matching the iOS app.
@@ -151,7 +152,11 @@ The app talks to `https://dev.iminklet.com` with an inklet user access token:
   `inklet-sdk` repository (`ANALYSIS_CONTRACT.md`) and
   `inklet-backend/docs/api/sdk-v1.md`.
 - `/api/devices`: legacy Display reads, rename, unbind, queue advance, and
-  history, shared with the Portal and iOS.
+  history, shared with the Portal and iOS. `POST /api/devices/quote0` connects
+  a Dot. Quote/0 with an API key and serial number; the backend seals the key
+  and pushes rendered pictures through the Dot. cloud, so the app treats the
+  result as an ordinary device with `transport: "dot_cloud"` (contract:
+  `inklet-backend/docs/api/quote0.md`).
 - `/api/virtual-displays`: account-owned Virtual Displays; see
   [docs/virtual-displays.md](docs/virtual-displays.md).
 

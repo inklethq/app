@@ -67,7 +67,11 @@ device's new frame. Signing out during generation prevents subsequent publishing
 Scene metadata is cached on the generating host alongside its published frame;
 other devices currently synchronize the PNG through Virtual Display frame APIs.
 Virtual Display registration/frame APIs remain a separate deployment requirement.
-Queues/history, Quote/0, and SDK/BYOD enrollment remain outside this implementation.
+Queues/history and SDK/BYOD enrollment remain outside this implementation.
+Quote/0 is not a Virtual Display: it is connected under **New Display →
+Quote/0** with a Dot. API key and serial number and then behaves as a hardware
+device (`transport: "dot_cloud"`), pushed by the backend through the Dot.
+cloud rather than published from the app.
 
 Contract: https://docs-dev.iminklet.com/api/targetless-presentations/#macos
 
