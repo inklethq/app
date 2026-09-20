@@ -262,7 +262,7 @@ enum AnalysisTimeline {
         // and only arrives when it next syncs — hours, or never for a display
         // that is switched off.
         "delivery.published": "Sent to the display — it will show it when it next syncs",
-        "delivery.confirmed": "Shown on the display",
+        "delivery.confirmed": "Showing on the display",
         "delivery.failed": "Delivery failed",
     ]
 

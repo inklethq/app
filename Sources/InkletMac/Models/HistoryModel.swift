@@ -56,6 +56,13 @@ final class HistoryModel {
     /// cannot land on top of the list that replaced it.
     private var generation = 0
 
+    /// Runs opened from elsewhere — a device's history — that the list may
+    /// not hold, read one at a time. `analysis(_:)` answers from here too.
+    private(set) var extras: [String: AnalysisDTO] = [:]
+    private(set) var openError: String?
+    /// A run another page asked to open. The History view takes it.
+    var requestedOpenID: String?
+
     /// Events by run id, `seq` ascending, no duplicates.
     private(set) var events: [String: [AnalysisEventDTO]] = [:]
     private(set) var timelineErrors: [String: String] = [:]
@@ -72,8 +79,28 @@ final class HistoryModel {
         isLoading = false
         isLoadingMore = false
         error = nil
+        extras = [:]
+        openError = nil
+        requestedOpenID = nil
         events = [:]
         timelineErrors = [:]
+    }
+
+    func requestOpen(_ id: String) {
+        requestedOpenID = id
+    }
+
+    /// Makes sure `analysis(id)` can answer: reads the run when the list does
+    /// not hold it (another filter, an older page, or opened from a device).
+    func ensure(_ id: String) async {
+        guard analysis(id) == nil else { return }
+        openError = nil
+        do {
+            extras[id] = try await InkletAPI.shared.analysis(id: id)
+        } catch {
+            guard !(error is CancellationError) else { return }
+            openError = Self.message(for: error)
+        }
     }
 
     func loadIfNeeded() async {
@@ -128,12 +155,14 @@ final class HistoryModel {
     }
 
     func analysis(_ id: String) -> AnalysisDTO? {
-        items.first { $0.id == id }
+        items.first { $0.id == id } ?? extras[id]
     }
 
     private func replace(_ analysis: AnalysisDTO) {
         if let index = items.firstIndex(where: { $0.id == analysis.id }) {
             items[index] = analysis
+        } else if extras[analysis.id] != nil {
+            extras[analysis.id] = analysis
         }
     }
 

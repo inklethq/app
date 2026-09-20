@@ -216,7 +216,9 @@ struct DeviceDetailView: View {
                 } else {
                     ForEach(Array(history.enumerated()), id: \.element.id) { index, push in
                         HistoryRow(push: push, showsDivider: index < history.count - 1,
-                                   canShow: push.canShowAgain && !isAdvancing) { show(push) }
+                                   canShow: push.canShowAgain && !isAdvancing,
+                                   onShow: { show(push) },
+                                   onOpenRun: push.analysisID.map { id in { model.openRun(id) } })
                     }
                     if let floor = model.historyFloor(for: device) {
                         Text("Your plan shows history since \(floor.formatted(date: .abbreviated, time: .omitted)). Upgrade to see all of it.")
@@ -303,6 +305,9 @@ private struct HistoryRow: View {
     let showsDivider: Bool
     var canShow = false
     var onShow: () -> Void = {}
+    /// Opens the run behind the picture on the History page. Nil for a
+    /// picture with no run on record (older pushes).
+    var onOpenRun: (() -> Void)? = nil
     @State private var isHovering = false
 
     private var subtitle: String {
@@ -324,6 +329,14 @@ private struct HistoryRow: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
+                if let onOpenRun {
+                    Button("Run", systemImage: "clock.arrow.circlepath") { onOpenRun() }
+                        .labelStyle(.titleOnly)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .opacity(isHovering ? 1 : 0)
+                        .help("See how this was made, on the History page")
+                }
                 if canShow {
                     Button("Show", systemImage: "arrow.uturn.backward") { onShow() }
                         .labelStyle(.titleOnly)
@@ -346,7 +359,11 @@ private struct HistoryRow: View {
             .frame(height: 46)
             .contentShape(Rectangle())
             .onHover { isHovering = $0 }
+            // The row itself opens the run; the buttons are for what else it
+            // can do, and for saying so on hover.
+            .onTapGesture { onOpenRun?() }
             .contextMenu {
+                if let onOpenRun { Button("View Run") { onOpenRun() } }
                 if canShow { Button("Show on Display") { onShow() } }
             }
             if showsDivider {
