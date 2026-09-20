@@ -8,10 +8,13 @@ import UniformTypeIdentifiers
 /// A draft is sent with an *action* (what to do with it) to a *target* (where
 /// it goes), the same two choices the web Portal's composer offers:
 ///
-/// - Just upload: save the material, no AI run.
-/// - Make a card: one AI run over this note.
-/// - Make a card using my recent notes: this note plus the last week.
-/// - Show it as-is: one picture straight to a display, no AI.
+/// - Just upload (⌥1): save the material, no AI run.
+/// - Push to device (⌥2): one AI run over this note.
+/// - Recent summary (⌥3): this note plus the last week.
+/// - Show as-is (⌥4): one picture straight to a display, no AI.
+///
+/// ⌘↩ sends. Plain Return is a newline in the field, which is what a text
+/// field owes the person typing into it.
 struct ComposerView: View {
     @Environment(AppModel.self) private var model
 
@@ -165,12 +168,7 @@ struct ComposerView: View {
     }
 
     private func label(for action: ComposeAction) -> (title: String, sub: String) {
-        switch action {
-        case .upload: ("Just upload", "no card, no AI run")
-        case .card: ("Make a card", "from this note · 1 AI run")
-        case .cardHistory: ("Make a card using my recent notes", "this + last 7 days · 1 AI run")
-        case .asIs: ("Show it as-is", "no AI, straight to the display")
-        }
+        (action.menuTitle, action.menuHint)
     }
 
     private var blocker: String? {
@@ -361,21 +359,26 @@ struct ComposerView: View {
         .disabled(isSending)
     }
 
+    private var canSend: Bool { hasContent && !isSending && blocker == nil }
+
     /// The face names the action; the menu lists the rest. Pressing the face
-    /// sends. Return does the same.
+    /// sends, and so does ⌘↩. Each item carries ⌥1…⌥4, which work with the
+    /// menu closed — a shortcut on the Menu itself would land on every item
+    /// (that is how Return used to pick "Just upload" instead of sending).
     private var sendButton: some View {
         Menu {
             ForEach(actions) { candidate in
-                let labels = label(for: candidate)
                 Button {
                     action = candidate
                 } label: {
                     if candidate == action {
-                        Label("\(labels.title) — \(labels.sub)", systemImage: "checkmark")
+                        Label(candidate.menuTitle, systemImage: "checkmark")
                     } else {
-                        Text("\(labels.title) — \(labels.sub)")
+                        Text(candidate.menuTitle)
                     }
                 }
+                .keyboardShortcut(candidate.shortcutKey, modifiers: .option)
+                .help(candidate.menuHint)
             }
         } label: {
             HStack(spacing: 6) {
@@ -385,7 +388,7 @@ struct ComposerView: View {
                     Image(systemName: action == .upload ? "tray.and.arrow.down" : "arrow.up")
                         .font(.system(size: 11, weight: .semibold))
                 }
-                Text(label(for: action).title)
+                Text(action.menuTitle)
                     .lineLimit(1)
             }
         } primaryAction: {
@@ -394,9 +397,29 @@ struct ComposerView: View {
         .menuStyle(.button)
         .buttonStyle(.borderedProminent)
         .fixedSize()
-        .keyboardShortcut(.defaultAction)
-        .disabled(!hasContent || isSending || blocker != nil)
-        .help(label(for: action).sub)
+        .disabled(!canSend)
+        .help("\(action.menuHint) · ⌘↩ to send")
+        .background { hiddenShortcuts }
+    }
+
+    /// The key equivalents, on buttons of their own. ⌘↩ cannot sit on the Menu
+    /// — a shortcut there propagates to the items, which is how Return used to
+    /// pick "Just upload" — and the items' own ⌥n are only certain to fire
+    /// while the menu is open, so each mode gets a closed-menu twin here. The
+    /// items keep theirs for the hint the menu draws beside them.
+    private var hiddenShortcuts: some View {
+        Group {
+            Button("Send", action: send)
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(!canSend)
+            ForEach(actions) { candidate in
+                Button(candidate.menuTitle) { action = candidate }
+                    .keyboardShortcut(candidate.shortcutKey, modifiers: .option)
+            }
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     private var linkSheet: some View {
@@ -548,6 +571,39 @@ private struct ComposerTargetPicker: View {
         .labelsHidden()
         .onChange(of: available) { _, values in
             if !values.contains(selection) { selection = .agent }
+        }
+    }
+}
+
+extension ComposeAction {
+    /// What the send button and its menu call the action. Short: the face of
+    /// a split button is not the place for a sentence.
+    var menuTitle: String {
+        switch self {
+        case .upload: "Just upload"
+        case .card: "Push to device"
+        case .cardHistory: "Recent summary"
+        case .asIs: "Show as-is"
+        }
+    }
+
+    /// The tooltip. What the label does not say and a first-time user asks.
+    var menuHint: String {
+        switch self {
+        case .upload: "Save to Knowledge without sending it anywhere. No AI run. ⌥1"
+        case .card: "Make a card from this note and send it to the display. 1 AI run. ⌥2"
+        case .cardHistory: "Make a card from this note and the last 7 days of notes. 1 AI run. ⌥3"
+        case .asIs: "Put this one picture on the display untouched. No AI. ⌥4"
+        }
+    }
+
+    /// The digit under ⌥ that picks it, in menu order.
+    var shortcutKey: KeyEquivalent {
+        switch self {
+        case .upload: "1"
+        case .card: "2"
+        case .cardHistory: "3"
+        case .asIs: "4"
         }
     }
 }
