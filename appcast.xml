@@ -3,6 +3,19 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.2.4-alpha.4</title>
+            <pubDate>Sun, 20 Sep 2026 22:08:36 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:channel>beta</sparkle:channel>
+            <sparkle:version>17</sparkle:version>
+            <sparkle:shortVersionString>0.2.4-alpha.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[v0.2.4-alpha.4: Dot. mark in lists, name at connect, history opens the run, Showing
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.4-alpha.4/inklet-portal-0.2.4-alpha.4-mac-universal.dmg" length="8609060" type="application/octet-stream" sparkle:edSignature="v04Ybm6oYfusGtiLTSKhakMSVz3CLiKzdLfIWQSYrr2p/xUrABS1TCyfAuzYmexpbPWwRiDbOuGVfsXxIcBzBw=="/>
+        </item>
+        <item>
             <title>0.2.4-alpha.3</title>
             <pubDate>Sun, 20 Sep 2026 20:36:10 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
