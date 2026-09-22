@@ -6,20 +6,56 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
-      version:
-        description: inklet Portal for macOS version
-        required: true
-        default: "0.2.0"
+      # No default: a stale one once rebuilt main under an old version's name.
+      # The version comes from the tag, and the build from the tag's commit.
       release_tag:
-        description: Existing GitHub Release that receives the macOS assets
+        description: Tag of the existing GitHub Release to rebuild (e.g. v0.2.4-alpha.4)
         required: true
-        default: "v0.2.0-alpha.1"
 
 permissions:
   contents: write
 
 jobs:
+  # Settles what is being released before anything is created, deleted or
+  # built: the tag, its version, and the exact commit every later job uses.
+  resolve-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      sha: ${{ steps.tag.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.release_tag) || github.ref }}
+
+      - name: Check the tag
+        id: tag
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::$TAG is not a release tag (vMAJOR.MINOR.PATCH, optionally -alpha.N or -beta.N)"
+            exit 1
+          fi
+          # Stable releases reach every user, so they ship only what main has.
+          # Pre-releases may come from any branch; alphas ship from feature branches.
+          if [[ "$TAG" != *-* ]] && ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::$TAG is a stable tag, but $(git rev-parse --short HEAD) is not on main"
+            exit 1
+          fi
+          # A rebuild has nowhere to put its assets without the Release.
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   create-release:
+    needs: resolve-tag
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
@@ -44,25 +80,30 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-mac:
-    needs: create-release
+    needs: [resolve-tag, create-release]
     if: >-
       always() &&
+      needs.resolve-tag.result == 'success' &&
       (github.event_name == 'workflow_dispatch' || needs.create-release.result == 'success')
     runs-on: macos-26
     steps:
+      # The commit resolve-tag checked, not whatever the branch or tag points
+      # at by now: the build must be exactly the release it is labelled as.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-tag.outputs.sha }}
 
       - name: Resolve release metadata
         env:
-          INPUT_VERSION: ${{ inputs.version }}
-          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          TAG: ${{ needs.resolve-tag.outputs.tag }}
+          VERSION: ${{ needs.resolve-tag.outputs.version }}
         run: |
-          VERSION="$INPUT_VERSION"
-          RELEASE_TAG="$INPUT_RELEASE_TAG"
-          if [[ -z "$VERSION" ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
-          if [[ -z "$RELEASE_TAG" ]]; then RELEASE_TAG="$GITHUB_REF_NAME"; fi
           echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+
+      # Before the signing certificate is on the runner. Same step as ci.yml.
+      - name: Test native shared data and widget routing
+        run: xcrun swift test
 
       - name: Import Developer ID certificate
         env:
