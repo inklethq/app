@@ -6,6 +6,8 @@
     <string>$(INKLET_APP_GROUP)</string>
     <key>InkletWidgetStorageMode</key>
     <string>$(INKLET_WIDGET_STORAGE_MODE)</string>
+    <key>InkletAPIBaseURL</key>
+    <string>$(INKLET_API_BASE_URL)</string>
     <key>CFBundleDisplayName</key><string>inklet</string>
     <key>NSExtension</key>
     <dict>

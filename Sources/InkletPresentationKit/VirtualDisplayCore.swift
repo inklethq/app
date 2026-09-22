@@ -221,7 +221,7 @@ nonisolated public enum VirtualDisplayReader {
     public static func refresh(id: UUID, store: VirtualDisplayStore = .init()) async {
         guard let catalog = try? store.catalog(), let record = catalog.items.first(where: { $0.display.id == id }),
               let access = record.access else { return }
-        var request = URLRequest(url: URL(string: "https://dev.iminklet.com/api/virtual-display-widget/\(id.uuidString.lowercased())")!)
+        var request = URLRequest(url: InkletServer.apiBase.appending(path: "api/virtual-display-widget/\(id.uuidString.lowercased())"))
         request.timeoutInterval = 15
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("Bearer \(access.token)", forHTTPHeaderField: "Authorization")

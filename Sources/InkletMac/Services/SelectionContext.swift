@@ -32,6 +32,15 @@ enum SelectionContext {
         _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
     }
 
+    /// Privacy & Security → Accessibility, where the switch lives once the
+    /// prompt has been dismissed.
+    @MainActor
+    static func openSystemSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     static func selectedText(pid: pid_t) async -> String? {
         guard await MainActor.run(body: { AXIsProcessTrusted() }) else { return nil }
 

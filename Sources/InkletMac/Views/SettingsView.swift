@@ -29,10 +29,16 @@ struct SettingsView: View {
 
 private struct GeneralSettings: View {
     @AppStorage(SystemSettings.showInDockKey) private var showInDock = true
-    @AppStorage(SystemSettings.showWeatherKey) private var showWeather = true
+    @AppStorage(SystemSettings.showWeatherKey) private var showWeather = false
     @ObservedObject private var updater = AppUpdater.shared
     private let loginItem = LaunchAtLogin.shared
     private let weather = WeatherService.shared
+    /// The system posts nothing when Accessibility access changes, so this is
+    /// read again whenever the app comes back to the front — which is how a
+    /// user returning from System Settings arrives.
+    @State private var readsSelection = SelectionContext.isTrusted
+    /// The system prompt shows once; after that the switch is only in System Settings.
+    @State private var askedForAccessibility = false
 
     private var lastCheckDescription: String {
         guard updater.isAvailable else { return "Run a packaged build to check for updates" }
@@ -53,6 +59,12 @@ private struct GeneralSettings: View {
         if let problem = weather.problem { return problem }
         if let current = weather.current { return "\(current.summary), \(current.temperature) right now" }
         return "Uses your approximate location, via Open-Meteo"
+    }
+
+    private var selectionSubtitle: String {
+        readsSelection
+            ? "The composer offers the text you've highlighted"
+            : "Needs Accessibility access in System Settings to offer highlighted text"
     }
 
     var body: some View {
@@ -109,6 +121,24 @@ private struct GeneralSettings: View {
                 SettingRow(title: "Global shortcut",
                            subtitle: "Opens the composer from any app · ⌫ restores the default") {
                     ShortcutRecorder()
+                }
+                SettingRow(title: "Highlighted text", subtitle: selectionSubtitle) {
+                    if !readsSelection {
+                        if askedForAccessibility {
+                            Button("Open Settings") { SelectionContext.openSystemSettings() }
+                                .controlSize(.small)
+                        } else {
+                            Button("Allow…") {
+                                SelectionContext.requestPermission()
+                                askedForAccessibility = true
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+                }
+                .onAppear { readsSelection = SelectionContext.isTrusted }
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                    readsSelection = SelectionContext.isTrusted
                 }
                 SettingRow(title: "Weather on Home", subtitle: weatherSubtitle, showsDivider: false) {
                     HStack(spacing: 8) {

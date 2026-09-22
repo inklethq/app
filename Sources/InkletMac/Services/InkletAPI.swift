@@ -25,6 +25,26 @@ enum APIError: LocalizedError, Sendable {
         case .cancelled: nil
         }
     }
+
+    /// The server has refused this session for good: a 401 that survived a
+    /// refresh, a refresh token it no longer knows, or no session at all.
+    /// Everything else — offline, a timeout, a 5xx, a captive portal's HTML —
+    /// says nothing about the tokens and must not cost the user their session.
+    static func endsSession(_ error: Error) -> Bool {
+        switch error as? APIError {
+        case .sessionExpired?, .notAuthenticated?: true
+        default: false
+        }
+    }
+}
+
+/// What checking the stored session at launch came to.
+enum RestoreOutcome: Sendable {
+    case signedIn(UserDTO)
+    /// Nothing was stored, or the server refused it.
+    case signedOut
+    /// The server couldn't be asked. The tokens are kept for the next try.
+    case unreachable
 }
 
 /// Why `POST /api/devices/quote0` refused, in the words the setup form shows.
@@ -74,22 +94,48 @@ enum Quote0BindError: LocalizedError, Equatable, Sendable {
 actor InkletAPI {
     static let shared = InkletAPI()
 
-    private let authBase = URL(string: "https://auth.iminklet.com")!
-    private let apiBase = URL(string: "https://dev.iminklet.com")!
+    /// One HTTP round trip. `URLSession` in the app; a scripted server in the
+    /// tests that pin down when a stored session may be thrown away.
+    typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
-    private let session: URLSession
+    /// Where the tokens outlive the process: `TokenStore` in the app, memory in
+    /// tests — which must never touch the session of whoever runs them.
+    struct TokenVault: Sendable {
+        var load: @Sendable () -> AuthTokens?
+        var save: @Sendable (AuthTokens) -> Void
+        var clear: @Sendable () -> Void
+
+        static let system = TokenVault(load: TokenStore.load, save: TokenStore.save, clear: TokenStore.clear)
+    }
+
+    private let authBase = URL(string: "https://auth.iminklet.com")!
+    private let apiBase = InkletServer.apiBase
+
+    private let transport: Transport
+    private let vault: TokenVault
     private var tokens: AuthTokens?
     private var didLoadStoredTokens = false
     private var refreshInFlight: Task<AuthTokens, Error>?
 
-    init() {
+    init(transport: Transport? = nil, vault: TokenVault = .system) {
+        self.vault = vault
+        if let transport {
+            self.transport = transport
+            return
+        }
         let config = URLSessionConfiguration.default
-        config.waitsForConnectivity = true
-        config.timeoutIntervalForRequest = 30
+        // Every request here has someone waiting on it — the launch splash,
+        // a page, the composer. Waiting for connectivity (with the default
+        // seven-day resource timeout) left the splash spinning forever on a
+        // Mac with no network; failing fast is what lets the UI say so.
+        config.waitsForConnectivity = false
+        config.timeoutIntervalForRequest = 20
+        config.timeoutIntervalForResource = 120
         // Presigned S3 URLs are single-use and time-boxed; a cached 200 for one
         // would be served after the signature expired.
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        session = URLSession(configuration: config)
+        let session = URLSession(configuration: config)
+        self.transport = { request in try await session.data(for: request) }
     }
 
     /// Deliberately not done in `init`. This type is a `static let`, so its
@@ -100,7 +146,7 @@ actor InkletAPI {
     private func loadStoredTokensIfNeeded() {
         guard !didLoadStoredTokens else { return }
         didLoadStoredTokens = true
-        tokens = TokenStore.load()
+        tokens = vault.load()
     }
 
     var hasCredentials: Bool {
@@ -113,7 +159,7 @@ actor InkletAPI {
     func adopt(_ newTokens: AuthTokens) {
         didLoadStoredTokens = true
         tokens = newTokens
-        TokenStore.save(newTokens)
+        vault.save(newTokens)
     }
 
     func signOut() async {
@@ -123,12 +169,12 @@ actor InkletAPI {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(tokens.accessToken)", forHTTPHeaderField: "Authorization")
             request.httpBody = try? JSONEncoder().encode(["refreshToken": tokens.refreshToken])
-            _ = try? await session.data(for: request)
+            _ = try? await transport(request)
         }
         tokens = nil
         refreshInFlight?.cancel()
         refreshInFlight = nil
-        TokenStore.clear()
+        vault.clear()
     }
 
     func login(identifier: String, password: String) async throws -> UserDTO {
@@ -139,21 +185,20 @@ actor InkletAPI {
         return response.user
     }
 
-    /// Fetches the profile, refreshing once if the stored access token is stale.
-    /// Returns nil when there is no usable session at all.
-    func restore() async -> UserDTO? {
+    /// Fetches the profile with the stored session; `me()` already refreshes
+    /// once on a 401. Only the server refusing the session signs out (which
+    /// also revokes it server-side). No network, a timeout or a 5xx says
+    /// nothing about the tokens: they are kept and the UI offers a retry.
+    func restore() async -> RestoreOutcome {
         loadStoredTokensIfNeeded()
-        guard tokens != nil else { return nil }
-        if let user = try? await me() { return user }
-        guard (try? await refreshTokens()) != nil else {
+        guard tokens != nil else { return .signedOut }
+        do {
+            return .signedIn(try await me())
+        } catch {
+            guard APIError.endsSession(error) else { return .unreachable }
             await signOut()
-            return nil
+            return .signedOut
         }
-        guard let user = try? await me() else {
-            await signOut()
-            return nil
-        }
-        return user
     }
 
     func me() async throws -> UserDTO {
@@ -273,8 +318,10 @@ actor InkletAPI {
     /// Downloads a presigned asset. Not routed through the authed helpers — S3
     /// rejects requests that carry an unexpected Authorization header.
     func fetchData(from url: URL) async throws -> Data {
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await transport(request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             guard (200...299).contains(status) else { throw APIError.http(status, nil) }
             return data
@@ -399,7 +446,7 @@ actor InkletAPI {
         }
 
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await transport(request)
             let http = response as? HTTPURLResponse
             if path.hasPrefix("api/app/v1/"), let http {
                 if (200...299).contains(http.statusCode), let renewed = http.value(forHTTPHeaderField: "X-Renewed-Token"),
@@ -429,7 +476,7 @@ actor InkletAPI {
         if let refreshInFlight { return try await refreshInFlight.value }
         guard let current = tokens else { throw APIError.notAuthenticated }
 
-        let task = Task<AuthTokens, Error> { [session, authBase] in
+        let task = Task<AuthTokens, Error> { [transport, authBase] in
             var request = URLRequest(url: authBase.appending(path: "auth/refresh"))
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -438,16 +485,24 @@ actor InkletAPI {
             let data: Data
             let response: URLResponse
             do {
-                (data, response) = try await session.data(for: request)
+                (data, response) = try await transport(request)
             } catch {
                 throw APIError.network
             }
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard (200...299).contains(status),
-                  let fresh = try? JSONDecoder().decode(AuthTokens.self, from: data) else {
+            switch status {
+            case 200...299:
+                // A 200 that isn't tokens is a proxy or captive portal
+                // answering for the server, not the server refusing us.
+                guard let fresh = try? JSONDecoder().decode(AuthTokens.self, from: data) else { throw APIError.decoding }
+                return fresh
+            case 400, 401:
+                // The backend's answer for a refresh token it doesn't know or
+                // that has expired (400: none sent). Nothing will fix it.
                 throw APIError.sessionExpired
+            default:
+                throw APIError.http(status, nil)
             }
-            return fresh
         }
         refreshInFlight = task
 
@@ -468,7 +523,7 @@ actor InkletAPI {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(for: request)
+            (data, response) = try await transport(request)
         } catch {
             throw APIError.network
         }

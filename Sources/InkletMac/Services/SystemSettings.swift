@@ -215,11 +215,16 @@ final class WeatherService: NSObject, CLLocationManagerDelegate {
     }
 
     /// Refreshes when the chip is enabled and the last fix is older than 30 minutes.
+    /// Never the thing that asks for location: Home calls this on every visit,
+    /// and the prompt belongs to the moment the user turns weather on.
     func refreshIfStale() {
         if let current, Date().timeIntervalSince(current.fetchedAt) < 30 * 60 { return }
+        guard manager.authorizationStatus != .notDetermined else { return }
         refresh()
     }
 
+    /// Asks for location access if it hasn't been asked for yet — so only from
+    /// turning the setting on, or a chip that can't exist without access.
     func refresh() {
         guard !isLoading else { return }
         problem = nil

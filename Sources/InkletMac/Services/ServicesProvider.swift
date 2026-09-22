@@ -9,17 +9,38 @@ import AppKit
 /// through the pasteboard instead of us going to fetch it.
 ///
 /// The declaration lives in Info.plist under `NSServices`; this is the receiver.
+///
+/// The menu item is in every app whether or not anyone is signed in — the
+/// declaration is static — so the receiver is installed for the life of the
+/// app and answers a signed-out request the way a widget link does: it keeps
+/// the payload, puts up the window where sign-in happens, and hands the
+/// payload to the composer once someone is signed in.
 @MainActor
 final class ServicesProvider: NSObject {
-    private let model: AppModel
+    /// AppKit keeps `servicesProvider` weakly. This is the reference that keeps
+    /// it alive for as long as the app runs, not as long as some window does.
+    private(set) static var installed: ServicesProvider?
 
-    init(model: AppModel) {
+    private let model: AppModel
+    private let session: Session
+    private let openMainWindow: () -> Void
+    /// What arrived while nobody was signed in, or before the stored session
+    /// had been checked on a cold launch from the Services menu.
+    private var pending: Capture?
+
+    private init(model: AppModel, session: Session, openMainWindow: @escaping () -> Void) {
         self.model = model
+        self.session = session
+        self.openMainWindow = openMainWindow
         super.init()
     }
 
-    func install() {
-        NSApp.servicesProvider = self
+    /// Once per launch; later calls find it already in place.
+    static func install(model: AppModel, session: Session, openMainWindow: @escaping () -> Void) {
+        guard installed == nil else { return }
+        let provider = ServicesProvider(model: model, session: session, openMainWindow: openMainWindow)
+        installed = provider
+        NSApp.servicesProvider = provider
         // Tells the system to re-read our Info.plist. Without it a freshly built
         // app doesn't appear in other apps' Services menus until logout.
         NSUpdateDynamicServices()
@@ -33,6 +54,19 @@ final class ServicesProvider: NSObject {
             error.pointee = "Nothing inklet can send." as NSString
             return
         }
+        guard session.user != nil else {
+            pending = context
+            openMainWindow()
+            NSApp.activate()
+            return
+        }
+        model.presentComposer(with: context)
+    }
+
+    /// Someone is signed in now: the composer gets what was waiting for them.
+    func deliverPending() {
+        guard let context = pending else { return }
+        pending = nil
         model.presentComposer(with: context)
     }
 
