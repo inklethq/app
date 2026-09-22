@@ -2,13 +2,12 @@
 
 ## Installed artifacts
 
-- Native macOS app: `/Users/clck/Applications/inklet.app`.
+- Native macOS app: installed in the tester's `~/Applications/inklet.app`.
 - Developer ID signed arm64 Release bundle with embedded `InkletWidgets.appex`.
 - Shared App Group: `5X22PG79XX.com.iminklet.mac`.
-- Previous native app backup: `/private/tmp/inklet-ready-backups/inklet-before-update.app`.
-- Release output: `/private/tmp/inklet-ready-release/inklet.app`.
+- The previously installed app was kept as a backup; the Release output was built into a local scratch directory.
 - iPhone 17 Pro and iPad Pro 13-inch (M5) simulators have the latest iOS app/widget installed.
-- iOS build: `/private/tmp/inklet-ready-ios/Build/Products/Debug-iphonesimulator/portal.app`.
+- iOS build: a Debug simulator build of `portal.app` in a local scratch directory.
 
 ## Verified
 
@@ -31,24 +30,26 @@ and handles the unavailable backend without crashing. No lock-screen or credenti
 protection was bypassed.
 
 A live acceptance harness using the actual native controller and Widget reader is
-prepared at `/private/tmp/inklet-live-qa`. It compiles, but its network acceptance test
+prepared locally. It compiles, but its network acceptance test
 has not run; the profile-only probe reported no loadable credentials. Run only after
 service deployment and legitimate account access are available.
 
 ## Release and current blockers
 
 - Final backend head `3bc28a9` received a new approval and was merged as `3aeb9252eadfe23e566446a1d575d7e454474936`.
-- Backend `v0.26.0` Build & Release succeeded: https://github.com/inklethq/backend/actions/runs/34579915128
-- Worker `v0.9.0` Build & Release succeeded: https://github.com/inklethq/worker/actions/runs/34579920601
+- Backend `v0.26.0` Build & Release succeeded.
+- Worker `v0.9.0` Build & Release succeeded.
 - Final installed macOS App and Widget build number: `2026091102`.
-- Light/dark and extra-large offline SwiftUI renders were inspected at `/private/tmp/inklet-ready-widget-previews`.
-- Deployment task: INK-158, https://agents.123a.club/inklet/issues/6794efd0-291c-4d91-958f-f9c43ddd980d
-- The production agent's Claude OAuth remains expired. The backend team found no existing authorized SSH/SSM/Docker context on macmini. Chrome AWS Console also requires IAM sign-in; the sign-in tab is retained for the owner.
+- Light/dark and extra-large offline SwiftUI renders were inspected locally.
+- Deployment task: INK-158 in the internal tracker.
+- Deployment was blocked on operator access to the production environment; no
+  authorized access path was available to the team at the time.
 - Last unauthenticated dev probes still returned 404 for both `/api/app/v1/presentations` and `/api/virtual-displays`. No deployment or live main-chain acceptance is claimed.
 
-AWS work is paused at the user's explicit request because they do not have access.
-The following recovery steps are retained for a future authorized resumption.
-After legitimate AWS login: connect to EC2 `54.158.246.40`, use the Multica daemon's system user, run `claude`, then `/login`, and complete the normal Anthropic organization authorization. Do not send tokens or authorization codes through chat. The backend team can then resume the fixed-image deployment and smoke tests.
+Deployment work was paused at the user's explicit request because they did not have
+access. Recovery steps for an authorized resumption are kept with the operators, not
+in this repository; once access is restored the backend team can resume the
+fixed-image deployment and smoke tests.
 
 A proposed 15-minute unattended continuation automation was rejected by automatic approval review. It was NOT created. A separate explicit authorization question is pending; current task authorization has not been treated as approval to bypass that rejection.
 
@@ -84,7 +85,7 @@ Independently verified from this Mac:
 - Independent HTTP fetch using only that display's existing Widget credential
   returned 200 with valid PNG (36,295 bytes), revision 1; ETag revalidation returned 304.
   No credentials were printed or transmitted to the backend agent.
-- Retrieved frame: `/private/tmp/inklet-live-widget-frame.png`.
+- The retrieved frame was saved locally and inspected.
 - My inklet is retained for the user. Findings were sent to the backend agent for INK-158.
 
 Still pending: AI auto with Pro entitlement, actual macOS desktop widget gallery

@@ -2,7 +2,7 @@
 
 审计日期：2026-09-05。对象：`inklet-app/macos` 的当前工作区，包括尚未提交的 Presentation / Widget 改动。
 
-> 同日后续实现：用户随后要求完成 Widget。已新增 small Quick Send、medium Activity、large Virtual Display、独立 Xcode 扩展工程、嵌入打包、深链导航、账户隔离缓存及 App 内 Virtual Display 页。P0-2 的源码/打包缺口已经处理，P0-3 的最新画面查看入口已补；下面保留最初审计快照。大号在线生成仍依赖 P0-1 的后端实现，Developer ID 签名后的系统 Widget 与共享容器验收仍需完成。当前构建和测试说明见 [Widget README](/Users/clck/Desktop/Workspace/inklet-app/macos/WidgetExtension/README.md)。
+> 同日后续实现：用户随后要求完成 Widget。已新增 small Quick Send、medium Activity、large Virtual Display、独立 Xcode 扩展工程、嵌入打包、深链导航、账户隔离缓存及 App 内 Virtual Display 页。P0-2 的源码/打包缺口已经处理，P0-3 的最新画面查看入口已补；下面保留最初审计快照。大号在线生成仍依赖 P0-1 的后端实现，Developer ID 签名后的系统 Widget 与共享容器验收仍需完成。当前构建和测试说明见 [Widget README](../WidgetExtension/README.md)。
 
 ## 结论与版本边界
 
@@ -10,7 +10,7 @@
 
 - App 仓库基线：`d3607f4`，存在未提交修改和未跟踪的 Widget / Presentation 源码。
 - 后端仓库基线：`6507e37`，检查时工作区干净。
-- 本机 `/Users/clck/Applications/inklet.app` 仍显示旧的 **Push something**；当前源码显示 **Create a Presentation**。安装版和工作区已有构建的可执行文件 SHA-256 不同，不能将它们视为同一版本。
+- 本机 `~/Applications/inklet.app` 仍显示旧的 **Push something**；当前源码显示 **Create a Presentation**。安装版和工作区已有构建的可执行文件 SHA-256 不同，不能将它们视为同一版本。
 - 本次只审查和验证，没有修改产品源码，没有发送内容、解绑设备、退出登录或调整设置开关。
 - 已实际查看安装版 Home、General、Notifications；Home 能加载真实设备与内容统计。其他行为以源码和后端契约核对为主，未宣称完成在线发送或真机收屏验收。
 
@@ -26,7 +26,7 @@ Mac 的 `generatePresentation()` 使用登录会话 JWT 请求 `/api/app/v1/cont
 
 这来自未提交的改动：原先 `AppModel.send()` 调用 `uploadBundle()`；现在切到 `generatePresentation()`，旧方法已经没有 UI 调用者。当前工作区默认发送链路需要补齐后端与客户端契约后才能发布。此结论针对当前检出的后端，不等于已经验证线上部署版本。
 
-证据：[发送入口](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Models/AppModel.swift:271)、[新 API](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Services/InkletAPI.swift:231)、[后端路由](/Users/clck/Desktop/Workspace/inklet-backend/cmd/server/router.go:198)、[PAT 鉴权](/Users/clck/Desktop/Workspace/inklet-backend/internal/sdk/middleware.go:66)、[后端请求模型](/Users/clck/Desktop/Workspace/inklet-backend/internal/sdk/content.go:28)、[后端 Presentation 模型](/Users/clck/Desktop/Workspace/inklet-backend/internal/sdk/presentation.go:71)。
+证据：[发送入口](../Sources/InkletMac/Models/AppModel.swift#L271)、[新 API](../Sources/InkletMac/Services/InkletAPI.swift#L231)、后端路由（`inklet-backend/cmd/server/router.go:198`）、PAT 鉴权（`inklet-backend/internal/sdk/middleware.go:66`）、后端请求模型（`inklet-backend/internal/sdk/content.go:28`）、后端 Presentation 模型（`inklet-backend/internal/sdk/presentation.go:71`）。
 
 ### P0-2：Widget 有源码，但没有可安装的扩展产物
 
@@ -36,7 +36,7 @@ Mac 的 `generatePresentation()` 使用登录会话 JWT 请求 `/api/app/v1/cont
 
 此外，Widget 发出 `inklet://presentations/latest`，主 App 没有 URL scheme 声明和相应导航处理，点击 Widget 的链路也未接通。目前仅支持 medium，small / large 未实现；旧稿中的 Quick Send / Activity Widget 也不在这次实现中。
 
-证据：[扩展待接说明](/Users/clck/Desktop/Workspace/inklet-app/macos/WidgetExtension/README.md:3)、[Package](/Users/clck/Desktop/Workspace/inklet-app/macos/Package.swift:17)、[打包脚本](/Users/clck/Desktop/Workspace/inklet-app/macos/Scripts/build-app.sh:32)、[Widget 深链](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletPresentationWidget/InkletPresentationWidget.swift:56)。
+证据：[扩展待接说明](../WidgetExtension/README.md#L3)、[Package](../Package.swift#L17)、[打包脚本](../Scripts/build-app.sh#L32)、[Widget 深链](../Sources/InkletPresentationWidget/InkletPresentationWidget.swift#L56)。
 
 ### P0-3：新生成内容缺少 App 内的查看与管理闭环
 
@@ -44,7 +44,7 @@ Mac 的 `generatePresentation()` 使用登录会话 JWT 请求 `/api/app/v1/cont
 
 Home 热力图与 Knowledge 仍读取旧 `/api/raw-items`。当前 SDK 使用独立的 `sdk_contents` 数据模型，没有看到将新生成内容补入旧 raw-items 列表的桥接。因此，新 Content 如何进入 Knowledge 和活动统计仍需实现/明确；不能认为发送后的 `loadKnowledge()` 就能自动完成同步。
 
-证据：[生成后处理](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Models/AppModel.swift:274)、[缓存](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletPresentationKit/PresentationCache.swift:41)、[导航入口](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/RootView.swift:3)、[旧列表读取](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Models/AppModel.swift:95)、[SDK Content 存储](/Users/clck/Desktop/Workspace/inklet-backend/internal/sdk/repository.go:168)。
+证据：[生成后处理](../Sources/InkletMac/Models/AppModel.swift#L274)、[缓存](../Sources/InkletPresentationKit/PresentationCache.swift#L41)、[导航入口](../Sources/InkletMac/Views/RootView.swift#L3)、[旧列表读取](../Sources/InkletMac/Models/AppModel.swift#L95)、SDK Content 存储（`inklet-backend/internal/sdk/repository.go:168`）。
 
 ## 二、功能覆盖清单
 
@@ -84,7 +84,7 @@ Home 热力图与 Knowledge 仍读取旧 `/api/raw-items`。当前 SDK 使用独
 | 关于与帮助 | 部分实现 | 有 Help 外链；没有设计稿的 About 设置页、更新检查、隐私/联系入口集合 |
 | 本地笔记同步、Spotlight、专门 Raycast 集成、多账号 | 未实现、后期范围 | 旧稿 P2，不建议阻塞核心版本 |
 
-主要证据：[App 场景](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/InkletMacApp.swift:18)、[设置开关](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/SettingsView.swift:23)、[通知设置](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/SettingsView.swift:114)、[登录](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/LoginView.swift:20)、[Manual 限制](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/ComposerView.swift:120)、[粘贴处理](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/ComposerView.swift:384)、[动态配色](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Theme/InkletTheme.swift:9)。
+主要证据：[App 场景](../Sources/InkletMac/InkletMacApp.swift#L18)、[设置开关](../Sources/InkletMac/Views/SettingsView.swift#L23)、[通知设置](../Sources/InkletMac/Views/SettingsView.swift#L114)、[登录](../Sources/InkletMac/Views/LoginView.swift#L20)、[Manual 限制](../Sources/InkletMac/Views/ComposerView.swift#L120)、[粘贴处理](../Sources/InkletMac/Views/ComposerView.swift#L384)、[动态配色](../Sources/InkletMac/Theme/InkletTheme.swift#L9)。
 
 ## 三、有实现但尚未收尾的行为问题
 
@@ -98,7 +98,7 @@ Home 热力图与 Knowledge 仍读取旧 `/api/raw-items`。当前 SDK 使用独
 - **P1，Services 登录生命周期不完整。** 仅登录成功后 install；冷启动投递时没有待登录 payload 队列。退出时又没有卸载 provider，可能继续打开不能发送的 Composer。
 - **P2，键盘功能不完整。** ⌘V 图片转附件只存在工具栏按钮路径；没有设计稿的 ⌘⌫ 清空整份草稿。菜单中的创建快捷键固定 ⌘⇧I，不随用户录制的全局快捷键修改；二者当前允许不同。
 
-证据：[权限与复制](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Services/SelectionContext.swift:22)、[异步抓取入口](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Models/AppModel.swift:330)、[激活窗口](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/ComposerPanel.swift:19)、[AppleScript 执行](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Services/AppContext.swift:290)、[Services 接收](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Services/ServicesProvider.swift:40)、[登录时安装](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/InkletMacApp.swift:80)。
+证据：[权限与复制](../Sources/InkletMac/Services/SelectionContext.swift#L22)、[异步抓取入口](../Sources/InkletMac/Models/AppModel.swift#L330)、[激活窗口](../Sources/InkletMac/Views/ComposerPanel.swift#L19)、[AppleScript 执行](../Sources/InkletMac/Services/AppContext.swift#L290)、[Services 接收](../Sources/InkletMac/Services/ServicesProvider.swift#L40)、[登录时安装](../Sources/InkletMac/InkletMacApp.swift#L80)。
 
 ### 2. 发送可靠性与模式覆盖
 
@@ -111,7 +111,7 @@ Home 热力图与 Knowledge 仍读取旧 `/api/raw-items`。当前 SDK 使用独
 - **P2，生成成功与可查看成功混为一体。** PNG 下载/缓存失败直接表现为整次发送失败；没有复用已生成 Presentation 的“重新下载/更新 Widget”。缺 PNG 时又允许写入空图缓存并报告成功。
 - **P2，模式语义需整理。** 当前 Manual 是单图直推，接近 Hardcode；没有通用的“指定硬件、AI 排版”路径。`syncTarget()` 在通用入口不会把之前的 Manual 重置成 Auto，因此“Create Presentation”也可能保留上一次硬件模式。
 
-证据：[发送状态](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/ComposerView.swift:410)、[幂等键](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Services/InkletAPI.swift:261)、[文件读取](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/ComposerView.swift:373)、[链接校验](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/ComposerView.swift:344)、[后端附件规则](/Users/clck/Desktop/Workspace/inklet-backend/internal/sdk/assets.go:9)、[模式同步](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/ComposerView.swift:84)。
+证据：[发送状态](../Sources/InkletMac/Views/ComposerView.swift#L410)、[幂等键](../Sources/InkletMac/Services/InkletAPI.swift#L261)、[文件读取](../Sources/InkletMac/Views/ComposerView.swift#L373)、[链接校验](../Sources/InkletMac/Views/ComposerView.swift#L344)、后端附件规则（`inklet-backend/internal/sdk/assets.go:9`）、[模式同步](../Sources/InkletMac/Views/ComposerView.swift#L84)。
 
 ### 3. 设备管理与 Knowledge
 
@@ -125,7 +125,7 @@ Home 热力图与 Knowledge 仍读取旧 `/api/raw-items`。当前 SDK 使用独
 - **P2，错误反馈不统一。** 侧栏 Show Next 用 `try?`，`reloadDevice()` 也吞掉错误。设备与 Knowledge 并发加载共享一个 `loadError`，设备成功可覆盖另一支的失败提示。
 - **P2，配对完成后可能选中错误设备。** Mac 用 `devices.last` 视为新设备，后端设备按创建时间倒序排列，也不是绑定时间顺序；应通过新增 ID 集合识别。
 
-证据：[队列与标题](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/DeviceDetailView.swift:99)、[实际队列排序](/Users/clck/Desktop/Workspace/inklet-backend/internal/iot/repository.go:140)、[历史加载](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Models/AppModel.swift:186)、[Knowledge 加载](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Models/AppModel.swift:95)、[标题任务](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Models/AppModel.swift:142)、[侧栏操作](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/RootView.swift:98)、[新设备选择](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Views/PairDisplayView.swift:57)。
+证据：[队列与标题](../Sources/InkletMac/Views/DeviceDetailView.swift#L99)、实际队列排序（`inklet-backend/internal/iot/repository.go:140`）、[历史加载](../Sources/InkletMac/Models/AppModel.swift#L186)、[Knowledge 加载](../Sources/InkletMac/Models/AppModel.swift#L95)、[标题任务](../Sources/InkletMac/Models/AppModel.swift#L142)、[侧栏操作](../Sources/InkletMac/Views/RootView.swift#L98)、[新设备选择](../Sources/InkletMac/Views/PairDisplayView.swift#L57)。
 
 ### 4. 会话与本地数据生命周期
 
@@ -136,7 +136,7 @@ Home 热力图与 Knowledge 仍读取旧 `/api/raw-items`。当前 SDK 使用独
 - **P2，Release 的 Keychain 写失败仍回退到 JSON 文件。** 当前注释称正式版始终使用 Keychain，实际 `save()` 在 Keychain 失败时继续落盘；需要明确正式版失败策略。此次没有读取实际凭据文件。
 - **P2，账号套餐不会随常规 Refresh 更新。** 常规刷新只拉设备和 raw-items，account 来自登录/恢复时的 user，网页升级后可能继续显示旧套餐。
 
-证据：[恢复会话](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Services/InkletAPI.swift:106)、[重置逻辑](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Models/AppModel.swift:44)、[退出登录](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Services/Session.swift:88)、[TokenStore fallback](/Users/clck/Desktop/Workspace/inklet-app/macos/Sources/InkletMac/Services/TokenStore.swift:36)。
+证据：[恢复会话](../Sources/InkletMac/Services/InkletAPI.swift#L106)、[重置逻辑](../Sources/InkletMac/Models/AppModel.swift#L44)、[退出登录](../Sources/InkletMac/Services/Session.swift#L88)、[TokenStore fallback](../Sources/InkletMac/Services/TokenStore.swift#L36)。
 
 ## 四、已完成的工程基础与尚缺的验收
 
@@ -153,7 +153,7 @@ Home 热力图与 Knowledge 仍读取旧 `/api/raw-items`。当前 SDK 使用独
 - 本机安装版的 Home 能读取真实数据，General / Notifications 确认存在上述设置项；没有执行发送、解绑、登录切换或权限申请。
 - 未完成本次 universal Release 重建、线上新 API 联调、真实硬件收屏、Widget 添加到桌面、发布证书和公证服务验收。
 
-证据：[现有测试](/Users/clck/Desktop/Workspace/inklet-app/macos/Tests/InkletPresentationKitTests/PresentationCacheTests.swift:5)、[CI](/Users/clck/Desktop/Workspace/inklet-app/.github/workflows/ci.yml:29)、[发布流程](/Users/clck/Desktop/Workspace/inklet-app/.github/workflows/release.yml:45)。
+证据：[现有测试](../Tests/InkletPresentationKitTests/PresentationCacheTests.swift#L5)、[CI](../.github/workflows/ci.yml#L29)、[发布流程](../.github/workflows/release.yml#L45)。
 
 ## 五、旧设计中不能直接当作欠账的项目
 
@@ -164,7 +164,7 @@ Home 热力图与 Knowledge 仍读取旧 `/api/raw-items`。当前 SDK 使用独
 5. **Manual 展示时长：** 旧稿将接口列为待定，当前没有端到端支持。先确认产品仍需要此语义，再补接口和 UI。
 6. **Firefox 上下文：** 当前明确不支持自动读取 tab；其他应用可通过 Services / 手动粘贴提交，需作为支持范围说明而非假定所有浏览器可用。
 
-证据：[NFC 协议](/Users/clck/Desktop/Workspace/inklet-backend/docs/api/nfc-v2-protocol.md:7)、[旧设计分期](/Users/clck/Desktop/Workspace/inklet-app/macos/design/index.html:1404)、[平台要求](/Users/clck/Desktop/Workspace/inklet-app/macos/Package.swift:6)。
+证据：NFC 协议（`inklet-backend/docs/api/nfc-v2-protocol.md:7`）、[旧设计分期](../design/index.html#L1404)、[平台要求](../Package.swift#L6)。
 
 ## 六、建议实施顺序
 
