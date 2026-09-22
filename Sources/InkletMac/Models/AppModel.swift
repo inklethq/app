@@ -15,6 +15,7 @@ final class AppModel {
         virtualDisplays = VirtualDisplayController { path, method, body, headers in
             try await InkletAPI.shared.virtualDisplayRequest(path, method: method, body: body, headers: headers)
         }
+        history.onSessionExpired = { [weak self] in await self?.session?.invalidate() }
     }
     var account = Account(username: "", email: "", plan: "free")
     var devices: [Device] = []
@@ -93,6 +94,7 @@ final class AppModel {
         WidgetCenter.shared.reloadAllTimelines()
         account = Account(username: "", email: "", plan: "free")
         suggestion = nil
+        AppContext.discardExports()
         composerTarget = nil
         composerVirtualTargetID = nil
         devices = []
@@ -278,7 +280,16 @@ final class AppModel {
     /// name, and a name that fails to stick is a rename away — the bind is the
     /// part that must not be lost. An empty name leaves the serial number.
     func bindQuote0(apiKey: String, serial: String, nickname: String = "") async throws -> Device {
-        let device = Device(dto: try await InkletAPI.shared.bindQuote0(apiKey: apiKey, serial: serial))
+        let dto: DeviceDTO
+        do {
+            dto = try await InkletAPI.shared.bindQuote0(apiKey: apiKey, serial: serial)
+        } catch {
+            // A dead session ends here the way it does everywhere else; the
+            // form is left with only the refusals that are about the panel.
+            if APIError.endsSession(error) { await session?.invalidate() }
+            throw error
+        }
+        let device = Device(dto: dto)
         if let index = devices.firstIndex(where: { $0.id == device.id }) {
             devices[index] = device
         } else {
@@ -549,6 +560,9 @@ extension AppModel {
     /// focus — then goes to fetch its contents in the background.
     private func captureContext() {
         suggestion = nil
+        // The last summon's suggestion is gone, and so are the Photos exports
+        // behind it; anything already attached was read into memory.
+        AppContext.discardExports()
         guard let source = AppContext.frontmost(), source.bundleID != Bundle.main.bundleIdentifier
         else { return }
 

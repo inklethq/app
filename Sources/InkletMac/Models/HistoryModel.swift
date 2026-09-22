@@ -69,6 +69,11 @@ final class HistoryModel {
     /// The run whose timeline is being polled right now, if any.
     private(set) var watching: String?
 
+    /// Set by `AppModel`. A 401 that survived the refresh ends the session in
+    /// the one place the rest of the app does, rather than as an error line on
+    /// this page with the dead session left in place.
+    var onSessionExpired: (@MainActor () async -> Void)?
+
     /// A new account: nothing from the last one may show.
     func reset() {
         generation += 1
@@ -99,6 +104,7 @@ final class HistoryModel {
             extras[id] = try await InkletAPI.shared.analysis(id: id)
         } catch {
             guard !(error is CancellationError) else { return }
+            if await endsSession(error) { return }
             openError = Self.message(for: error)
         }
     }
@@ -131,6 +137,7 @@ final class HistoryModel {
             hasLoaded = true
         } catch {
             guard generation == expected, !(error is CancellationError) else { return }
+            if await endsSession(error) { return }
             self.error = Self.message(for: error)
         }
     }
@@ -150,6 +157,7 @@ final class HistoryModel {
             hasMore = (page.hasMore ?? false) && page.nextCursor != nil
         } catch {
             guard generation == expected, !(error is CancellationError) else { return }
+            if await endsSession(error) { return }
             self.error = Self.message(for: error)
         }
     }
@@ -239,6 +247,8 @@ final class HistoryModel {
                 return
             } catch {
                 if Task.isCancelled { return }
+                // Polling a dead session every two seconds helps no one.
+                if await endsSession(error) { return }
                 timelineErrors[id] = Self.message(for: error)
             }
             do {
@@ -247,6 +257,13 @@ final class HistoryModel {
                 return
             }
         }
+    }
+
+    /// True when the error was the session ending, now handed on.
+    private func endsSession(_ error: Error) async -> Bool {
+        guard APIError.endsSession(error) else { return false }
+        await onSessionExpired?()
+        return true
     }
 
     private static func message(for error: Error) -> String {

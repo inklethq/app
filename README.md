@@ -63,6 +63,7 @@ Useful environment variables:
 | `INKLET_TEAM_ID` | Required when the identity string does not end with the Team ID |
 | `INKLET_APP_GROUP` | Overrides the App Group derived from the Team ID |
 | `INKLET_RELEASE=1` | Compiles with `-DINKLET_RELEASE` |
+| `INKLET_API_BASE_URL` | API host for the app and the widget, written to both Info.plists as `InkletAPIBaseURL`; must be `https://`. Unset, both use the default in `Sources/InkletPresentationKit/InkletServer.swift` (`https://dev.iminklet.com`) |
 | `INKLET_OUTPUT_DIR` | Output directory, default `build/` |
 
 Ad-hoc builds use per-app widget storage. Only signed builds share live data
@@ -83,14 +84,20 @@ renders every widget in light and dark appearance for visual review.
 
 Pushing an annotated `v*` tag runs `.github/workflows/release.yml`:
 
-1. create a draft GitHub Release from the tag message;
-2. build the universal app, sign it and the widget with Developer ID;
-3. create and sign `dist/inklet-portal-<version>-mac-universal.dmg`;
-4. notarize with Apple, staple the ticket, upload the versioned disk image and
+1. check the tag: `vMAJOR.MINOR.PATCH` with an optional pre-release suffix
+   (`-alpha.N`, `-beta.N`). A stable tag must point at a commit on `main`;
+   pre-release tags may come from any branch;
+2. create a draft GitHub Release from the tag message;
+3. check out the tagged commit, run the tests, build the universal app, sign it
+   and the widget with Developer ID;
+4. create and sign `dist/inklet-portal-<version>-mac-universal.dmg`;
+5. notarize with Apple, staple the ticket, upload the versioned disk image and
    a stable `inklet-portal-macOS.dmg`;
-5. publish the Release.
+6. publish the Release.
 
-`workflow_dispatch` can rebuild the macOS assets for an existing Release.
+`workflow_dispatch` rebuilds the macOS assets for an existing Release from its
+tag: it takes the tag, builds that tag's commit, and derives the version from
+the tag name.
 
 Required repository secrets:
 
@@ -113,9 +120,10 @@ a universal ad-hoc build on every pull request and push to `main`.
 | Launch at login | `SMAppService.mainApp`; the toggle reads the system's status, and a "requires approval" state links to System Settings |
 | Show in Dock | Switches the activation policy between regular and accessory. The menu bar item is always present, so the app stays reachable with the Dock icon off |
 | Notifications | `UNUserNotificationCenter`: a card on its way, a failed send, a display that went offline. Permission is requested the first time an alert is turned on |
-| Weather on Home | CoreLocation for an approximate position, conditions from Open-Meteo (no key, no WeatherKit entitlement) |
+| Weather on Home | Off by default. CoreLocation for an approximate position, asked for when the setting is turned on; conditions from Open-Meteo (no key, no WeatherKit entitlement). The hardened runtime needs `com.apple.security.personal-information.location` in `Resources/InkletMac.entitlements` |
+| Highlighted text | The composer's selected-text suggestion needs Accessibility access. Settings shows whether it is granted, asks once, then links to Privacy & Security → Accessibility |
 
-All four need a packaged `.app`; under `swift run` they show as unavailable.
+The first four need a packaged `.app`; under `swift run` they show as unavailable.
 
 ## Automatic updates
 
@@ -146,7 +154,8 @@ ID build.
 
 ## Backend dependencies
 
-The app talks to `https://dev.iminklet.com` with an inklet user access token:
+The app and the widget talk to `https://dev.iminklet.com` (`INKLET_API_BASE_URL`
+overrides it at build time) with an inklet user access token:
 
 - `/api/app/v1/contents`, `/api/app/v1/analyses`, `/api/app/v1/presentations`:
   the Content → Analysis → Presentation pipeline. Every send from the composer
@@ -166,9 +175,18 @@ The app talks to `https://dev.iminklet.com` with an inklet user access token:
   [docs/virtual-displays.md](docs/virtual-displays.md).
 
 Identifiers that must stay stable across releases: bundle ID
-`com.iminklet.mac`, widget bundle ID `com.iminklet.mac.widgets`, URL schemes
-`inklet` and `inklet-mac`, and the App Group derived in
-`Scripts/widget-configuration.sh`.
+`com.iminklet.mac`, widget bundle ID `com.iminklet.mac.widgets`, the App Group
+derived in `Scripts/widget-configuration.sh`, and two URL schemes:
+
+- `inklet-mac`, the only scheme the app registers (`CFBundleURLTypes`). Widget
+  clicks open `inklet-mac://send`, `inklet-mac://activity` and
+  `inklet-mac://display/<id>`.
+- `inklet`, which the app does not register. Google and Apple sign-in end at the
+  portal's desktop callback page, which redirects to
+  `inklet://auth/callback?…`; `ASWebAuthenticationSession` claims the scheme
+  for the length of that sign-in only. The widget link parsers also accept
+  `inklet:` (iOS's registered scheme, in code shared with it), but macOS only
+  delivers the scheme the app registers.
 
 ## Related repositories
 

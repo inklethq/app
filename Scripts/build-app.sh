@@ -18,6 +18,7 @@ SPARKLE_FEED_URL="${INKLET_SPARKLE_FEED_URL:-https://raw.githubusercontent.com/i
 SPARKLE_PUBLIC_KEY="${INKLET_SPARKLE_PUBLIC_KEY:-V8ABE8pxqFcEA8x5OycPwX+42/hPESXcBaReS2HXEPA=}"
 source "$SCRIPT_DIR/widget-configuration.sh"
 inklet_configure_widget_group
+inklet_configure_api_base
 
 if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -93,6 +94,10 @@ if [[ -f "$ICON_SOURCE" ]]; then
   rm -rf "$(dirname "$ICONSET")"
 fi
 
+# Automatic and sudden termination are both off. With "Show in Dock" off and
+# no window open the app looks idle to macOS, but it is the global shortcut,
+# the Services receiver, the runs being followed and their notifications; the
+# system must not quit it to reclaim memory, or kill it without asking.
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -110,6 +115,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key><true/>
   <key>InkletAppGroupIdentifier</key><string>$INKLET_APP_GROUP</string>
   <key>InkletWidgetStorageMode</key><string>$INKLET_WIDGET_STORAGE_MODE</string>
+  <key>InkletAPIBaseURL</key><string>$INKLET_API_BASE_URL</string>
   <key>CFBundleURLTypes</key>
   <array><dict>
     <key>CFBundleURLName</key><string>com.iminklet.mac.widgets</string>
@@ -133,7 +139,6 @@ cat > "$APP/Contents/Info.plist" <<PLIST
         <string>public.utf8-plain-text</string>
         <string>public.file-url</string>
         <string>public.url</string>
-        <string>public.image</string>
       </array>
     </dict>
   </array>
@@ -142,7 +147,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>SUEnableAutomaticChecks</key><true/>
   <key>SUScheduledCheckInterval</key><integer>86400</integer>
   <key>NSPrincipalClass</key><string>NSApplication</string>
-  <key>NSSupportsAutomaticTermination</key><true/>
+  <key>NSSupportsAutomaticTermination</key><false/>
+  <key>NSSupportsSuddenTermination</key><false/>
 </dict>
 </plist>
 PLIST

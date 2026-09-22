@@ -259,6 +259,55 @@ struct SplashView: View {
     }
 }
 
+/// The stored session couldn't be checked: offline, a timeout, the server
+/// having a bad moment. The session is kept, so this offers a retry rather
+/// than the sign-in form, and tries again by itself when the network comes
+/// back. Sign Out is there for the one case a retry can't fix — wanting a
+/// different account while this one can't be reached.
+struct UnreachableView: View {
+    @Environment(Session.self) private var session
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Wordmark(size: 30)
+            VStack(spacing: 4) {
+                Text("Can't reach inklet")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Ink.text)
+                Text("You're still signed in. Check your connection and try again.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Ink.muted)
+            }
+            .multilineTextAlignment(.center)
+
+            Button {
+                Task { await session.retry() }
+            } label: {
+                Text(session.isWorking ? "Trying…" : "Try Again")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Ink.bg)
+                    .frame(width: 160)
+                    .padding(.vertical, 9)
+                    .background(Ink.text.opacity(session.isWorking ? 0.35 : 1),
+                                in: .rect(cornerRadius: Ink.controlCorner))
+            }
+            .buttonStyle(.plain)
+            .disabled(session.isWorking)
+            .keyboardShortcut(.defaultAction)
+
+            Button("Sign Out") { Task { await session.signOut() } }
+                .buttonStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundStyle(Ink.muted)
+                .disabled(session.isWorking)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Ink.bg.ignoresSafeArea())
+        .background(WindowStyler().frame(width: 0, height: 0))
+        .task { await session.retryWhenOnline() }
+    }
+}
+
 
 /// One identity-provider button, sized to the stricter of the two brand
 /// guidelines (Google: 40pt tall, 12pt side padding, 10pt between logo and

@@ -27,3 +27,17 @@ inklet_configure_widget_group() {
     return 1
   fi
 }
+
+# The API host for both bundles, so the widget cannot read frames from a
+# different server than the app publishes them to. Empty means the default in
+# Sources/InkletPresentationKit/InkletServer.swift, the only place it is written.
+inklet_configure_api_base() {
+  export INKLET_API_BASE_URL="${INKLET_API_BASE_URL:-}"
+  INKLET_API_BASE_URL="${INKLET_API_BASE_URL%/}"
+  # The app would quietly fall back to the default on anything else; a build
+  # that asked for another host should fail instead.
+  if [[ -n "$INKLET_API_BASE_URL" && ! "$INKLET_API_BASE_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$ ]]; then
+    echo "INKLET_API_BASE_URL must be an https:// URL with no query or credentials, got: $INKLET_API_BASE_URL" >&2
+    return 1
+  fi
+}

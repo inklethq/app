@@ -8,6 +8,7 @@ OUTPUT_DIR="${INKLET_OUTPUT_DIR:-$ROOT_DIR/build}"
 DERIVED_DATA="${INKLET_WIDGET_DERIVED_DATA:-$OUTPUT_DIR/WidgetDerivedData}"
 source "$SCRIPT_DIR/widget-configuration.sh"
 inklet_configure_widget_group
+inklet_configure_api_base
 
 # Use the full SDK without changing the user's xcode-select preference.
 if ! xcodebuild -version >/dev/null 2>&1; then
@@ -33,6 +34,7 @@ BUILD_ARGS=(-project "$ROOT_DIR/WidgetExtension/InkletWidgets.xcodeproj"
   CODE_SIGNING_ALLOWED=NO ENABLE_DEBUG_DYLIB=NO
   "INKLET_APP_GROUP=$INKLET_APP_GROUP"
   "INKLET_WIDGET_STORAGE_MODE=$INKLET_WIDGET_STORAGE_MODE"
+  "INKLET_API_BASE_URL=$INKLET_API_BASE_URL"
   "MARKETING_VERSION=${INKLET_VERSION:-0.2.0}"
   "CURRENT_PROJECT_VERSION=${INKLET_BUILD_NUMBER:-1}")
 if [[ -n "${INKLET_ARCHS:-}" ]]; then

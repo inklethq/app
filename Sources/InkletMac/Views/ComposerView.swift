@@ -1,6 +1,5 @@
 import InkletPresentationKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// Contents of the HUD panel. Lives in `ComposerPanelController`'s window rather
 /// than a popover, so the file chooser and app switches don't dismiss it.
@@ -24,6 +23,9 @@ struct ComposerView: View {
     @State private var generationID = UUID()
     @State private var virtualBaseRevision: Int64?
     @State private var attachments: [Attachment] = []
+    /// Batches of files still being read. Sending waits for them, or a send
+    /// could go out without the file the user just picked.
+    @State private var pendingReads = 0
     @State private var isSending = false
     @State private var progress: String?
     @State private var error: String?
@@ -130,14 +132,14 @@ struct ComposerView: View {
         if let value = capture.text { text = value }
 
         if let link = capture.link {
-            attachments.append(Attachment(
+            add(Attachment(
                 filename: link.title ?? (URL(string: link.url)?.host() ?? link.url),
                 contentType: "text/uri-list",
                 data: Data(),
                 link: link.url))
         }
 
-        capture.files.forEach { attach(url: $0) }
+        attach(capture.files)
         model.suggestion = nil
     }
 
@@ -359,7 +361,7 @@ struct ComposerView: View {
         .disabled(isSending)
     }
 
-    private var canSend: Bool { hasContent && !isSending && blocker == nil }
+    private var canSend: Bool { hasContent && !isSending && pendingReads == 0 && blocker == nil }
 
     /// The face names the action; the menu lists the rest. Pressing the face
     /// sends, and so does ⌘↩. Each item carries ⌥1…⌥4, which work with the
@@ -445,10 +447,10 @@ struct ComposerView: View {
     private func commitLink() {
         let trimmed = linkDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed), url.scheme != nil else { return }
-        attachments.append(Attachment(filename: url.host() ?? trimmed,
-                                      contentType: "text/uri-list",
-                                      data: Data(),
-                                      link: trimmed))
+        add(Attachment(filename: url.host() ?? trimmed,
+                       contentType: "text/uri-list",
+                       data: Data(),
+                       link: trimmed))
         linkDraft = ""
         isAddingLink = false
     }
@@ -462,23 +464,45 @@ struct ComposerView: View {
         picker.message = "Choose files to send to inklet"
 
         guard let host = NSApp.keyWindow else {
-            if picker.runModal() == .OK { picker.urls.forEach { attach(url: $0) } }
+            if picker.runModal() == .OK { attach(picker.urls) }
             return
         }
         picker.beginSheetModal(for: host) { response in
             guard response == .OK else { return }
-            picker.urls.forEach { attach(url: $0) }
+            attach(picker.urls)
         }
     }
 
-    private func attach(url: URL) {
-        guard let data = try? Data(contentsOf: url) else {
-            error = "Couldn't read \(url.lastPathComponent)"
+    /// Every attachment comes through here, so the Content's Asset ceiling
+    /// holds however it arrived.
+    private func add(_ attachment: Attachment) {
+        guard attachments.count < AttachmentRules.maxAttachments else {
+            error = AttachmentRules.tooMany
             return
         }
-        let type = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
-            ?? "application/octet-stream"
-        attachments.append(Attachment(filename: url.lastPathComponent, contentType: type, data: data))
+        attachments.append(attachment)
+    }
+
+    /// Reads off the main actor, in the order given; a refused file says why
+    /// and the rest still come in.
+    private func attach(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        pendingReads += 1
+        Task {
+            defer { pendingReads -= 1 }
+            for url in urls {
+                guard attachments.count < AttachmentRules.maxAttachments else {
+                    error = AttachmentRules.tooMany
+                    return
+                }
+                switch await AttachmentRules.load(url) {
+                case .file(let filename, let contentType, let data):
+                    add(Attachment(filename: filename, contentType: contentType, data: data))
+                case .refused(let message):
+                    error = message
+                }
+            }
+        }
     }
 
     /// Images come in as bytes, file promises as URLs, everything else as text.
@@ -486,12 +510,12 @@ struct ComposerView: View {
         let pasteboard = NSPasteboard.general
 
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self]) as? [URL], !urls.isEmpty {
-            for url in urls where url.isFileURL { attach(url: url) }
+            attach(urls.filter(\.isFileURL))
             for url in urls where !url.isFileURL {
-                attachments.append(Attachment(filename: url.host() ?? url.absoluteString,
-                                              contentType: "text/uri-list",
-                                              data: Data(),
-                                              link: url.absoluteString))
+                add(Attachment(filename: url.host() ?? url.absoluteString,
+                               contentType: "text/uri-list",
+                               data: Data(),
+                               link: url.absoluteString))
             }
             return
         }
@@ -499,7 +523,12 @@ struct ComposerView: View {
         if let image = NSImage(pasteboard: pasteboard),
            let tiff = image.tiffRepresentation,
            let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
-            attachments.append(Attachment(filename: "Pasted image.png", contentType: "image/png", data: png))
+            let filename = "Pasted image.png"
+            if let problem = AttachmentRules.problem(filename: filename, contentType: "image/png", byteCount: png.count) {
+                error = problem
+            } else {
+                add(Attachment(filename: filename, contentType: "image/png", data: png))
+            }
             return
         }
 
@@ -509,7 +538,7 @@ struct ComposerView: View {
     }
 
     private func send() {
-        guard hasContent, blocker == nil, !isSending else { return }
+        guard hasContent, blocker == nil, !isSending, pendingReads == 0 else { return }
         isSending = true
         error = nil
         progress = action == .upload ? "Saving…" : "Uploading…"
@@ -539,6 +568,8 @@ struct ComposerView: View {
                 generationID = UUID()
                 text = ""
                 attachments = []
+                // Whatever Photos exported for this send is uploaded now.
+                AppContext.discardExports()
                 try? await Task.sleep(for: .milliseconds(650))
                 ComposerPanelController.shared.hide()
             } catch {

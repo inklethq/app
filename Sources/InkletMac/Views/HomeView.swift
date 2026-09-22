@@ -32,7 +32,9 @@ struct HomeView: View {
         .navigationTitle("Home")
     }
 
-    @AppStorage(SystemSettings.showWeatherKey) private var showWeather = true
+    /// Off until the user turns it on in Settings, which is where location
+    /// access is asked for. A stored choice from an earlier build still stands.
+    @AppStorage(SystemSettings.showWeatherKey) private var showWeather = false
     private let weather = WeatherService.shared
 
     private var greeting: some View {

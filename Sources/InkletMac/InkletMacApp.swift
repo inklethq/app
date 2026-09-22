@@ -12,7 +12,11 @@ struct InkletMacApp: App {
     // menus but also greys out the window's traffic lights, so it's not worth it.
     // The clean fix is an `AccentColor` asset (app-scoped, leaves traffic lights
     // alone) — that needs Xcode's actool, so it lands when we move to an Xcode project.
-    init() { BrandFonts.register() }
+    init() {
+        BrandFonts.register()
+        // Photos exports from a previous run belong to nobody now.
+        Task.detached(priority: .utility) { AppContext.discardStaleExports() }
+    }
 
     static let mainWindowID = "main"
 
@@ -84,15 +88,15 @@ struct InkletMacApp: App {
 private struct AppGate: View {
     @Environment(Session.self) private var session
     @Environment(AppModel.self) private var model
-
-    /// AppKit keeps `servicesProvider` weakly, so this holds the only reference.
-    @State private var services: ServicesProvider?
+    @Environment(WidgetRouter.self) private var widgetRouter
 
     var body: some View {
         Group {
             switch session.state {
             case .restoring:
                 SplashView()
+            case .unreachable:
+                UnreachableView()
             case .signedOut:
                 LoginView()
             case .signedIn:
@@ -101,7 +105,11 @@ private struct AppGate: View {
         }
         .task {
             DockVisibility.install()
-            await session.restore()
+            ServicesProvider.install(model: model, session: session) { widgetRouter.openMainWindow?() }
+            // Only a launch checks the stored session. This view goes away with
+            // its window and comes back with the next one, and a session that
+            // is already settled must not be put through the check again.
+            if session.state == .restoring { await session.restore() }
         }
         .onChange(of: session.state) { _, state in
             switch state {
@@ -110,12 +118,12 @@ private struct AppGate: View {
                 model.account = Account(dto: user)
                 Task { await model.load() }
                 installHotKey()
-                installServices()
+                ServicesProvider.installed?.deliverPending()
             case .signedOut:
                 model.reset()
                 ComposerPanelController.shared.hide()
                 ShortcutStore.shared.deactivate()
-            case .restoring:
+            case .restoring, .unreachable:
                 break
             }
         }
@@ -125,12 +133,5 @@ private struct AppGate: View {
     /// can't send from would be worse than no shortcut.
     private func installHotKey() {
         ShortcutStore.shared.activate { model.toggleComposer() }
-    }
-
-    private func installServices() {
-        guard services == nil else { return }
-        let provider = ServicesProvider(model: model)
-        provider.install()
-        services = provider
     }
 }
