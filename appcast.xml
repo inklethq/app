@@ -3,6 +3,51 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.2.4</title>
+            <pubDate>Wed, 23 Sep 2026 02:33:19 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:version>18</sparkle:version>
+            <sparkle:shortVersionString>0.2.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.4
+
+New
+- Quote/0: connect a Dot. Quote/0 as a third display type under New
+  Display, with a Dot. API key and the panel's serial number. inklet
+  sends every picture through the Dot. cloud; push to it from the
+  composer, let inklet choose it, advance its queue, or bring back an
+  earlier picture. In the Dot. app, the panel's loop task needs an
+  "Image API" item, or Dot. refuses every picture.
+- History: a page that replays every run, step by step. A picture's
+  row on a display opens the run that made it.
+- Runs on macOS 15 Sequoia and later.
+- Composer: Option-1, Option-2 and Option-3 pick the mode, and
+  Command-Return sends.
+- Settings shows whether inklet may read the text you have highlighted,
+  with a button to allow it.
+
+Fixes
+- A dropped connection or a server hiccup at launch no longer signs you
+  out. inklet says it can't reach the server and tries again.
+- Launching without a network no longer leaves the splash spinning.
+- Picking up a page, a Finder selection or Photos items no longer holds
+  up inklet when the other app is slow to answer.
+- Attachments load without freezing the composer. A file over 10 MB, or
+  one inklet can't send, such as a HEIC or TIFF image, is refused when
+  you add it, with its name.
+- inklet keeps running in the menu bar when no window is open, so the
+  shortcut and the Services menu keep working.
+- A Quote/0 picture is shown whole in its preview instead of cropped.
+
+Changes
+- Weather on Home is off until you turn it on in Settings, and inklet
+  asks for your location only then.
+- Your sign-in is kept in the Keychain and nowhere else.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.4/inklet-portal-0.2.4-mac-universal.dmg" length="8713348" type="application/octet-stream" sparkle:edSignature="CNIBej2ZvSCI647tDt0matLD2e9KR13qiTJXRSCN11o+bSgIs622OQAd9Atw/BwkfjzV0LRaeWWPCCVA+XL7AQ=="/>
+        </item>
+        <item>
             <title>0.2.4-alpha.4</title>
             <pubDate>Sun, 20 Sep 2026 22:08:36 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
@@ -14,32 +59,6 @@
 
 ]]></description>
             <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.4-alpha.4/inklet-portal-0.2.4-alpha.4-mac-universal.dmg" length="8609060" type="application/octet-stream" sparkle:edSignature="v04Ybm6oYfusGtiLTSKhakMSVz3CLiKzdLfIWQSYrr2p/xUrABS1TCyfAuzYmexpbPWwRiDbOuGVfsXxIcBzBw=="/>
-        </item>
-        <item>
-            <title>0.2.4-alpha.3</title>
-            <pubDate>Sun, 20 Sep 2026 20:36:10 +0000</pubDate>
-            <link>https://github.com/inklethq/app/releases</link>
-            <sparkle:channel>beta</sparkle:channel>
-            <sparkle:version>16</sparkle:version>
-            <sparkle:shortVersionString>0.2.4-alpha.3</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[v0.2.4-alpha.3: Dot. logo on the Quote/0 card
-
-]]></description>
-            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.4-alpha.3/inklet-portal-0.2.4-alpha.3-mac-universal.dmg" length="8551842" type="application/octet-stream" sparkle:edSignature="H7KdJWmUntZ70mQWCMM5euJr6Qn5vaxh2ZvDPVkM3368ZOYzopfoXbTWuIC3DPtCqgAqyn9E5gmDsM8egGjcAQ=="/>
-        </item>
-        <item>
-            <title>0.2.4-alpha.2</title>
-            <pubDate>Sun, 20 Sep 2026 09:09:52 +0000</pubDate>
-            <link>https://github.com/inklethq/app/releases</link>
-            <sparkle:channel>beta</sparkle:channel>
-            <sparkle:version>15</sparkle:version>
-            <sparkle:shortVersionString>0.2.4-alpha.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[v0.2.4-alpha.2: macOS 15, composer shortcuts, History page
-
-]]></description>
-            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.4-alpha.2/inklet-portal-0.2.4-alpha.2-mac-universal.dmg" length="8537857" type="application/octet-stream" sparkle:edSignature="xI6mmg+D5i7bnW4+7r9uwh0/I21EaxmT89NZd/7XYJHLn8PcgR/fCUZR29v8pmcD0V+xzKhWqmYbWhm8gbgKCA=="/>
         </item>
         <item>
             <title>0.2.4-alpha.1</title>
