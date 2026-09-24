@@ -11,6 +11,9 @@ final class AppModel {
     /// The History page's runs and timelines. Its own object: the list pages
     /// and polls on its own clock, and nothing else on this model reads it.
     let history = HistoryModel()
+    /// Ask inklet: conversations with the knowledge base. Owned here so
+    /// sign-out clears it with everything else.
+    let ask = AskModel()
     init() {
         virtualDisplays = VirtualDisplayController { path, method, body, headers in
             try await InkletAPI.shared.virtualDisplayRequest(path, method: method, body: body, headers: headers)
@@ -34,6 +37,8 @@ final class AppModel {
     var requestedSidebarItem: SidebarItem?
 
     /// Opens a run's timeline on the History page, from anywhere.
+    func openAsk() { requestedSidebarItem = .ask }
+
     func openRun(_ analysisID: String) {
         history.requestOpen(analysisID)
         requestedSidebarItem = .history
@@ -68,6 +73,7 @@ final class AppModel {
         self.session = session
         accountGeneration = UUID()
         history.reset()
+        ask.reset()
         if let user = session.user {
             virtualDisplays.activate(accountID: user.id)
             account = Account(dto: user)
@@ -108,6 +114,7 @@ final class AppModel {
         runTasks.values.forEach { $0.cancel() }
         runTasks = [:]
         runs = []
+        ask.reset()
         loadError = nil
         isLoading = true
     }

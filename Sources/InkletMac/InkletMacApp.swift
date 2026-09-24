@@ -48,6 +48,10 @@ struct InkletMacApp: App {
                 Button("Create Presentation…") { model.startComposing() }
                     .keyboardShortcut("i", modifiers: [.command, .shift])
                     .disabled(session.user == nil)
+
+                Button("Ask inklet…") { openWindow(id: Self.mainWindowID); NSApp.activate(); model.openAsk() }
+                    .keyboardShortcut("a", modifiers: [.command, .shift])
+                    .disabled(session.user == nil)
             }
             CommandGroup(after: .toolbar) {
                 Button("Refresh") { Task { await model.refresh() } }
@@ -63,6 +67,8 @@ struct InkletMacApp: App {
         MenuBarExtra("inklet Portal", systemImage: "square.and.pencil") {
             Button("Open inklet Portal") { openWindow(id: Self.mainWindowID); NSApp.activate() }
             Button("Create Presentation…") { model.startComposing() }
+                .disabled(session.user == nil)
+            Button("Ask inklet…") { openWindow(id: Self.mainWindowID); NSApp.activate(); model.openAsk() }
                 .disabled(session.user == nil)
             Divider()
             CheckForUpdatesCommand()

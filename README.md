@@ -3,9 +3,10 @@
 The native SwiftUI client for inklet. It signs in with an inklet account
 (password, Google, or Apple),
 composes Content from text, links, images, and files, sends it to inklet
-Displays and to Dot. Quote/0 panels connected through their cloud, manages
-account-owned Virtual Displays, and ships a WidgetKit extension that shows
-those Displays on the desktop.
+Displays and to Dot. Quote/0 panels connected through their cloud, answers
+questions about what you have saved (Ask, ⌘⇧A), manages account-owned Virtual
+Displays, and ships a WidgetKit extension that shows those Displays on the
+desktop.
 
 It runs on macOS 15 (Sequoia) and later and builds as one universal app for
 Apple silicon and Intel Macs. The product name is **inklet Portal**, matching
@@ -165,6 +166,10 @@ overrides it at build time) with an inklet user access token:
   Analysis event stream. The contract lives in the
   `inklet-sdk` repository (`ANALYSIS_CONTRACT.md`) and
   `inklet-backend/docs/api/sdk-v1.md`.
+- `/api/app/v1/conversations`: Ask inklet. Every message starts a `mode = chat`
+  Analysis; the reply is read from that Analysis's event stream
+  (`assistant.delta`) and then from the conversation once it settles. Pro
+  only (`ai_chat`). The contract is `inklet-sdk/CONVERSATION_CONTRACT.md`.
 - `/api/devices`: legacy Display reads, rename, unbind, queue advance, and
   history, shared with the Portal and iOS. `POST /api/devices/quote0` connects
   a Dot. Quote/0 with an API key and serial number; the backend seals the key
