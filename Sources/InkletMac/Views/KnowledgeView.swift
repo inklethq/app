@@ -11,6 +11,11 @@ struct KnowledgeView: View {
 
     @State private var filter: Filter = .organized
     @State private var query = ""
+    /// Server results for the settled query; nil while the box is empty.
+    @State private var results: [KnowledgeItem]?
+    @State private var resultsTruncated = false
+    @State private var isSearching = false
+    @State private var searchError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -19,8 +24,27 @@ struct KnowledgeView: View {
         }
         .background(Ink.bg)
         .navigationTitle("Knowledge")
-        // Titles live in each item's content blob, which the list endpoint
-        // doesn't return; opening this page resolves the rest of them.
+        // Settle for a moment, then ask the backend: it searches the whole
+        // library — titles, note text, links, filenames, and what the ingest
+        // worker read out of images and files — not just what is loaded here.
+        .task(id: query.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !needle.isEmpty else { results = nil; resultsTruncated = false; searchError = nil; isSearching = false; return }
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            isSearching = true
+            defer { isSearching = false }
+            do {
+                let found = try await model.searchKnowledge(needle)
+                guard !Task.isCancelled else { return }
+                results = found.items
+                resultsTruncated = found.hasMore
+                searchError = nil
+            } catch is CancellationError {
+            } catch {
+                searchError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            }
+        }
     }
 
     private var masthead: some View {
@@ -76,7 +100,13 @@ struct KnowledgeView: View {
             .padding(.horizontal, 28)
             .padding(.bottom, 14)
 
-            if items.isEmpty {
+            if let searchError {
+                Spacer()
+                Text(searchError)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Ink.danger)
+                Spacer()
+            } else if items.isEmpty {
                 Spacer()
                 Text(emptyMessage)
                     .font(.system(size: 13))
@@ -92,7 +122,14 @@ struct KnowledgeView: View {
                         }
                     }
                     .padding(.horizontal, 28)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, resultsTruncated ? 8 : 24)
+                    if resultsTruncated {
+                        Text("Showing the first 50 matches. Narrow the search to see the rest.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Ink.muted)
+                            .frame(maxWidth: .infinity)
+                            .padding(.bottom, 24)
+                    }
                 }
                 .scrollIndicators(.never)
             }
@@ -105,27 +142,18 @@ struct KnowledgeView: View {
     }
 
     private var emptyMessage: String {
+        if isSearching || (results == nil && !query.trimmingCharacters(in: .whitespaces).isEmpty) { return "Searching…" }
         if model.isLoading { return "Loading…" }
-        if !query.isEmpty { return "No results for “\(query)”." }
+        if !query.isEmpty { return "Nothing matches “\(query.trimmingCharacters(in: .whitespaces))”." }
         return filter == .organized
             ? "Nothing organized yet — new items land in Pending first."
             : "Nothing pending. Everything you've sent has been processed."
     }
 
     private var items: [KnowledgeItem] {
-        model.knowledge
+        (results ?? model.knowledge)
             .filter { filter == .organized ? $0.processStatus == .ready : $0.processStatus != .ready }
-            .filter { matches(query, $0) }
             .sorted { $0.createdAt > $1.createdAt }
-    }
-
-    /// A row whose title hasn't resolved yet can't be matched on text, so it is
-    /// hidden while searching rather than shown as an unexplained blank.
-    private func matches(_ query: String, _ item: KnowledgeItem) -> Bool {
-        guard !query.isEmpty else { return true }
-        guard let title = item.title else { return false }
-        return title.localizedCaseInsensitiveContains(query)
-            || (item.detail?.localizedCaseInsensitiveContains(query) ?? false)
     }
 }
 

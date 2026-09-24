@@ -281,8 +281,16 @@ actor InkletAPI {
 
     /// One page of the account's Contents, newest first. This is what
     /// Knowledge shows; uploads from every client land here.
-    func contents(cursor: String? = nil, limit: Int = 50) async throws -> ContentPageDTO {
+    /// `query` is `GET /contents?q=`: whitespace-separated terms that must
+    /// all appear on the same Content — title, note text, link URL, filename,
+    /// or what the ingest worker read out of an image or file. Substring
+    /// match, so CJK works; the backend refuses more than 200 characters.
+    func contents(query: String? = nil, cursor: String? = nil, limit: Int = 50) async throws -> ContentPageDTO {
         var path = "api/app/v1/contents?limit=\(min(max(limit, 1), 50))"
+        if let query = query?.trimmingCharacters(in: .whitespacesAndNewlines), !query.isEmpty,
+           let encoded = String(query.prefix(200)).addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) {
+            path += "&q=\(encoded)"
+        }
         if let cursor, let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
             path += "&cursor=\(encoded)"
         }
@@ -563,4 +571,11 @@ actor InkletAPI {
         if let message = body["message"] as? String, !message.isEmpty { return message }
         return nil
     }
+}
+
+
+extension CharacterSet {
+    /// RFC 3986 unreserved characters only, so `&`, `=`, `+` and `%` inside a
+    /// search term arrive as themselves rather than as query syntax.
+    static let urlQueryValueAllowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
 }
