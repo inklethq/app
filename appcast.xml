@@ -3,6 +3,23 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.2.5</title>
+            <pubDate>Thu, 24 Sep 2026 07:20:43 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:version>19</sparkle:version>
+            <sparkle:shortVersionString>0.2.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.5
+
+New
+- Knowledge search now looks through your whole library on the server:
+  titles, note text, links, filenames, and what inklet read out of your
+  images and files. It no longer matches only the rows already loaded.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.5/inklet-portal-0.2.5-mac-universal.dmg" length="8739214" type="application/octet-stream" sparkle:edSignature="Y45K2aZIg72qcTS2O9G+oPM39m28fn5QHgaMvjI/0IHn1B1ga7NHMcEVlonGrjhA/DseamHy6TGRJlxoPRsBCA=="/>
+        </item>
+        <item>
             <title>0.2.4</title>
             <pubDate>Wed, 23 Sep 2026 02:33:19 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
