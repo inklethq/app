@@ -3,6 +3,24 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.3.0</title>
+            <pubDate>Thu, 24 Sep 2026 21:24:22 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:version>20</sparkle:version>
+            <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.3.0
+
+New
+- Ask inklet: a conversation with everything you have saved. Open it from
+  the sidebar, the app menu, or ⌘⇧A. Ask a question and inklet searches and
+  reads your notes and answers as it writes; ask it to make a card or put an
+  earlier picture back on a display and it does that for you. Part of Pro.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.3.0/inklet-portal-0.3.0-mac-universal.dmg" length="9150323" type="application/octet-stream" sparkle:edSignature="l98tF9Rrg5qnb4snA/SQg3gGe6mofsJqsnUH/QjL05uHDZyuRcU/ZgpWasX6nxkI3Xi68+3OnBoNYY6ETyHvCg=="/>
+        </item>
+        <item>
             <title>0.2.5</title>
             <pubDate>Thu, 24 Sep 2026 07:20:43 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
