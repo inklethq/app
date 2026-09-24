@@ -297,6 +297,46 @@ actor InkletAPI {
         return try await authed(path)
     }
 
+    // MARK: - Conversations (Ask inklet, `/api/app/v1/conversations`)
+
+    func conversations(cursor: String? = nil, limit: Int = 50) async throws -> ConversationPageDTO {
+        var path = "api/app/v1/conversations?limit=\(min(max(limit, 1), 50))"
+        if let cursor, let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
+            path += "&cursor=\(encoded)"
+        }
+        return try await authed(path)
+    }
+
+    func createConversation(title: String? = nil) async throws -> ConversationDTO {
+        try await authed("api/app/v1/conversations", method: "POST", jsonObject: ["title": title ?? NSNull()])
+    }
+
+    /// A conversation with its most recent 50 messages, oldest first.
+    func conversation(id: String) async throws -> ConversationDetailDTO {
+        try await authed("api/app/v1/conversations/\(id)")
+    }
+
+    /// Messages strictly before `before`, oldest first.
+    func conversationMessages(id: String, before: String? = nil, limit: Int = 50) async throws -> MessagePageDTO {
+        var path = "api/app/v1/conversations/\(id)/messages?limit=\(min(max(limit, 1), 50))"
+        if let before { path += "&before=\(before)" }
+        return try await authed(path)
+    }
+
+    func deleteConversation(id: String) async throws {
+        try await authedVoid("api/app/v1/conversations/\(id)", method: "DELETE")
+    }
+
+    /// One user message, one round. Errors keep the backend's `code`
+    /// (`reply_in_progress`, `plan_upgrade_required`) as a `PresentationHTTPError`.
+    func sendMessage(conversationID: String, text: String, requestID: UUID) async throws -> SendMessageResultDTO {
+        let body = try JSONSerialization.data(withJSONObject: ["text": text])
+        let data = try await virtualDisplayRequest("api/app/v1/conversations/\(conversationID)/messages", method: "POST",
+                                                   body: body, headers: ["Idempotency-Key": "mac-\(requestID.uuidString.lowercased())"])
+        guard let decoded = try? JSONDecoder().decode(SendMessageResultDTO.self, from: data) else { throw APIError.decoding }
+        return decoded
+    }
+
     // MARK: - Analyses
 
     /// One page of the account's runs, newest first — what History shows.
