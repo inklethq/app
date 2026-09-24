@@ -194,6 +194,14 @@ final class AppModel {
         rebuildActivity()
     }
 
+    /// One page of Contents matching `query`, straight from the backend, as
+    /// Knowledge rows. Not cached: a search is a question about the whole
+    /// library, and the heatmap window `knowledge` covers is not the library.
+    func searchKnowledge(_ query: String) async throws -> (items: [KnowledgeItem], hasMore: Bool) {
+        let page = try await InkletAPI.shared.contents(query: query, limit: 50)
+        return (page.items.map(KnowledgeItem.init(dto:)), page.hasMore ?? false)
+    }
+
     private func rebuildActivity() {
         let calendar = Calendar.current
         var counts: [Date: Int] = [:]
