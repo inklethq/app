@@ -53,11 +53,20 @@ enum TokenStore {
         }
 
         let status = keychainSave(data)
-        if status != errSecSuccess {
-            log.error("Keychain refused the session (OSStatus \(status, privacy: .public)); it is kept in memory for this launch only")
+        if status == errSecSuccess {
+            try? FileManager.default.removeItem(at: fileURL)
+            return
         }
-        // Whatever the Keychain said, a release build leaves no plaintext copy.
-        try? FileManager.default.removeItem(at: fileURL)
+        // The Keychain said no — typically an item another build of the app
+        // created, whose access control this build cannot change. Keeping the
+        // tokens only in memory meant the next launch found a refresh token the
+        // backend had already rotated away, and the user was signed out by an
+        // update. The file copy (0600, file protection) is the lesser evil; the
+        // next successful Keychain save removes it.
+        log.error("Keychain refused the session (OSStatus \(status, privacy: .public)); keeping it in the session file instead")
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
     }
 
     /// Blocking. Never call this from the main thread — see `usesKeychain`.
@@ -88,7 +97,7 @@ enum TokenStore {
             try? FileManager.default.removeItem(at: fileURL)
             return nil
         }
-        log.notice("Moving a session file left by an earlier release into the Keychain")
+        log.notice("Session came from the file; offering it to the Keychain again")
         save(tokens)
         return tokens
     }
@@ -110,8 +119,19 @@ enum TokenStore {
         ]
     }
 
+    /// Update in place when the item exists, add when it does not.
+    ///
+    /// Delete-then-add re-creates the item's access control on every save, and
+    /// when the delete is refused (the item belongs to an earlier install of
+    /// the app) the add fails with errSecDuplicateItem — so the fresh tokens
+    /// were never written and every relaunch after a refresh needed a login.
     private static func keychainSave(_ data: Data) -> OSStatus {
-        SecItemDelete(baseQuery() as CFDictionary)
+        let update = SecItemUpdate(baseQuery() as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if update == errSecSuccess { return update }
+        if update != errSecItemNotFound {
+            log.error("Keychain update failed (OSStatus \(update, privacy: .public)); replacing the item")
+            SecItemDelete(baseQuery() as CFDictionary)
+        }
         var query = baseQuery()
         query[kSecValueData as String] = data
         query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock

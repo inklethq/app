@@ -49,7 +49,7 @@ struct LoginView: View {
     private var wordmark: some View {
         VStack(spacing: 10) {
             Wordmark(size: 34)
-            Text("Your second brain, on paper.")
+            Text("Your second brain, on e-ink displays.")
                 .font(.system(size: 13))
                 .foregroundStyle(Ink.muted)
         }
