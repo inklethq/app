@@ -199,16 +199,23 @@ struct InkCard<Content: View>: View {
     }
 }
 
-/// Small caps eyebrow used above every section.
+/// Shared type roles: serif page titles, readable section headings and quiet metadata.
+enum InkType {
+    static let title = Font.brand(34)
+    static let section = Font.system(size: 16, weight: .semibold)
+    static let body = Font.system(size: 15)
+    static let metadata = Font.system(size: 12)
+}
+
+/// A section heading, never a decorative all-caps eyebrow.
 struct SectionLabel: View {
     let text: String
 
     init(_ text: String) { self.text = text }
 
     var body: some View {
-        Text(text.uppercased())
-            .font(.system(size: 11, weight: .medium))
-            .tracking(1.3)
-            .foregroundStyle(Ink.muted)
+        Text(text)
+            .font(InkType.section)
+            .foregroundStyle(Ink.text)
     }
 }

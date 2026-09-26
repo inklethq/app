@@ -25,7 +25,7 @@ struct VirtualDisplayDetailView: View {
                         VirtualFramePreview(data: frame?.imageData)
                             .aspectRatio(CGFloat(display.width) / CGFloat(display.height), contentMode: .fit)
                     } caption: {
-                        Text(display.revision > 0 ? "Published · Revision \(display.revision)" : "Nothing on screen yet")
+                        Text(display.revision > 0 ? "Published revision \(display.revision)" : "Nothing on screen yet")
                     }
                 } information: {
                     InkCard(stretches: true) {

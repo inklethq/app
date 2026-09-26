@@ -119,7 +119,7 @@ private struct GeneralSettings: View {
 
             SettingsGroup("Composer") {
                 SettingRow(title: "Global shortcut",
-                           subtitle: "Opens the composer from any app · ⌫ restores the default") {
+                           subtitle: "Opens the composer from any app. Press ⌫ to restore the default.") {
                     ShortcutRecorder()
                 }
                 SettingRow(title: "Highlighted text", subtitle: selectionSubtitle) {
@@ -178,9 +178,8 @@ private struct AccountSettings: View {
                             .foregroundStyle(Ink.secondary)
                     }
                     Spacer(minLength: 8)
-                    Text(model.account.plan.uppercased())
+                    Text(model.account.plan.capitalized)
                         .font(.system(size: 11, weight: .medium))
-                        .tracking(0.8)
                         .foregroundStyle(Ink.secondary)
                         .padding(.horizontal, 9)
                         .padding(.vertical, 4)

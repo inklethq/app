@@ -8,7 +8,7 @@ private enum DisplayConnection: String, CaseIterable, Identifiable {
     var id: Self { self }
     var title: String {
         switch self {
-        case .hardware: "Hardware Display"
+        case .hardware: "inklet D1"
         case .virtual: "Virtual Display"
         case .quote0: "Quote/0"
         }
@@ -57,7 +57,6 @@ struct NewDisplayView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 28) {
                         VStack(alignment: .leading, spacing: 9) {
-                            SectionLabel("Make room for your ideas")
                             Text("New Display").font(.brand(36)).foregroundStyle(Ink.text)
                             Text("Choose how you’d like to bring inklet into view.")
                                 .font(.system(size: 14)).foregroundStyle(Ink.secondary)
@@ -142,7 +141,7 @@ private struct MacVirtualDisplaySetupView: View {
                 }
                 InkCard(padding: 20) {
                     VStack(alignment: .leading, spacing: 12) {
-                        SectionLabel("Display name")
+                        Text("Display name").font(.system(size: 13, weight: .medium)).foregroundStyle(Ink.secondary)
                         TextField("My inklet", text: $name)
                             .textFieldStyle(.plain).font(.system(size: 16))
                             .padding(12).background(Ink.input, in: .rect(cornerRadius: Ink.controlCorner))
@@ -150,7 +149,7 @@ private struct MacVirtualDisplaySetupView: View {
                     }
                 }.disabled(virtuals.busy)
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionLabel("Canvas size")
+                    Text("Canvas size").font(.system(size: 13, weight: .medium)).foregroundStyle(Ink.secondary)
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
                         ForEach(VirtualDisplaySizeProfile.available) { value in
                             Button { profile = value } label: {
@@ -243,7 +242,7 @@ private struct Quote0SetupView: View {
                 InkCard(padding: 20) {
                     VStack(alignment: .leading, spacing: 16) {
                         VStack(alignment: .leading, spacing: 10) {
-                            SectionLabel("Name")
+                            Text("Name").font(.system(size: 13, weight: .medium)).foregroundStyle(Ink.secondary)
                             TextField("Kitchen", text: $name)
                                 .textFieldStyle(.plain).font(.system(size: 15))
                                 .padding(12).background(Ink.input, in: .rect(cornerRadius: Ink.controlCorner))
@@ -254,7 +253,7 @@ private struct Quote0SetupView: View {
                                 .font(.system(size: 12)).foregroundStyle(Ink.muted)
                         }
                         VStack(alignment: .leading, spacing: 10) {
-                            SectionLabel("Dot. API key")
+                            Text("Dot. API key").font(.system(size: 13, weight: .medium)).foregroundStyle(Ink.secondary)
                             SecureField("dot_app_…", text: $apiKey)
                                 .textFieldStyle(.plain).font(.system(size: 15, design: .monospaced))
                                 .padding(12).background(Ink.input, in: .rect(cornerRadius: Ink.controlCorner))
@@ -263,7 +262,7 @@ private struct Quote0SetupView: View {
                                 .font(.system(size: 12)).foregroundStyle(Ink.muted)
                         }
                         VStack(alignment: .leading, spacing: 10) {
-                            SectionLabel("Serial number")
+                            Text("Serial number").font(.system(size: 13, weight: .medium)).foregroundStyle(Ink.secondary)
                             TextField("ABCD1234ABCD", text: $serial)
                                 .textFieldStyle(.plain).font(.system(size: 15, design: .monospaced))
                                 .autocorrectionDisabled()

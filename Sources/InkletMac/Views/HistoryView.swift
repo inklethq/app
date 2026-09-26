@@ -5,40 +5,42 @@ import InkletPresentationKit
 /// the daily ones they did not — and, for any one of them, what happened.
 ///
 /// The same page as the web Portal's Analyses, in two levels: the list, and a
-/// run's timeline in its place. No navigation stack: the list keeps its scroll
-/// and filters behind the detail, and the back button is the only way out.
+/// run's timeline in a native navigation stack. The list retains its filters
+/// while the system supplies the toolbar-level back navigation.
 struct HistoryView: View {
     @Environment(AppModel.self) private var model
-    @State private var openID: String?
+    @Binding var path: NavigationPath
 
     var body: some View {
         @Bindable var history = model.history
-        VStack(alignment: .leading, spacing: 0) {
-            if let openID {
-                if let analysis = history.analysis(openID) {
-                    HistoryDetail(analysis: analysis, history: history, displayNames: displayNames) {
-                        self.openID = nil
-                    }
-                } else {
-                    opening(history)
-                }
-            } else {
+        NavigationStack(path: $path) {
+            VStack(alignment: .leading, spacing: 0) {
                 masthead
                 filters($history)
                 list(history)
             }
+            .background(Ink.bg)
+            .navigationTitle("History")
+            .toolbar { ComposerToolbar() }
+            .navigationDestination(for: String.self) { id in
+                Group {
+                    if let analysis = history.analysis(id) {
+                        HistoryDetail(analysis: analysis, history: history, displayNames: displayNames)
+                    } else {
+                        opening(history)
+                    }
+                }
+                .background(Ink.bg)
+                .navigationTitle(history.analysis(id)?.historyTitle ?? "Activity")
+                .toolbar { ComposerToolbar() }
+                .toolbarBackground(.hidden, for: .windowToolbar)
+                .task(id: id) { await history.ensure(id) }
+            }
         }
-        .background(Ink.bg)
-        .navigationTitle("History")
         .task { await model.history.loadIfNeeded() }
-        // A run the list does not hold — opened from a device's history, or
-        // from a page the filters hide — is read on its own.
-        .task(id: openID) {
-            if let openID { await model.history.ensure(openID) }
-        }
         .onChange(of: history.requestedOpenID, initial: true) { _, id in
             guard let id else { return }
-            openID = id
+            path = NavigationPath([id])
             model.history.requestedOpenID = nil
         }
         .onChange(of: history.stateFilter) { _, _ in Task { await model.history.load() } }
@@ -48,12 +50,6 @@ struct HistoryView: View {
     /// The detail's frame while the run it was asked for is still being read.
     private func opening(_ history: HistoryModel) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Button { openID = nil } label: {
-                Label("History", systemImage: "chevron.left")
-            }
-            .buttonStyle(.plain)
-            .font(.system(size: 13))
-            .foregroundStyle(Ink.secondary)
             Text(history.openError ?? "Loading…")
                 .font(.system(size: 13))
                 .foregroundStyle(history.openError == nil ? Ink.muted : Ink.danger)
@@ -71,11 +67,10 @@ struct HistoryView: View {
 
     private var masthead: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionLabel("Every run")
             Text("History")
                 .font(.brand(34))
                 .foregroundStyle(Ink.text)
-            Text("Every run inklet has made for you — the ones you asked for, and the daily ones you did not.")
+            Text("Review your creations and display updates.")
                 .font(.system(size: 13))
                 .foregroundStyle(Ink.secondary)
         }
@@ -85,31 +80,10 @@ struct HistoryView: View {
     }
 
     private func filters(_ history: Bindable<HistoryModel>) -> some View {
-        HStack(spacing: 22) {
-            HStack(spacing: 10) {
-                Text("State")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Ink.muted)
-                Picker("State", selection: history.stateFilter) {
-                    ForEach(HistoryModel.StateFilter.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-            }
-            HStack(spacing: 10) {
-                Text("Started by")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Ink.muted)
-                Picker("Started by", selection: history.triggerFilter) {
-                    ForEach(HistoryModel.TriggerFilter.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-            }
+        HStack(spacing: 16) {
+            filterControls(history)
 
-            Spacer()
+            Spacer(minLength: 0)
 
             if history.wrappedValue.isLoading {
                 ProgressView().controlSize(.small)
@@ -130,6 +104,16 @@ struct HistoryView: View {
     }
 
     @ViewBuilder
+    private func filterControls(_ history: Bindable<HistoryModel>) -> some View {
+        InkSegmentedPicker(title: "State", selection: history.stateFilter, showsLabel: true) {
+            ForEach(HistoryModel.StateFilter.allCases) { Text($0.label).tag($0) }
+        }
+        InkSegmentedPicker(title: "Started by", selection: history.triggerFilter, showsLabel: true) {
+            ForEach(HistoryModel.TriggerFilter.allCases) { Text($0.label).tag($0) }
+        }
+    }
+
+    @ViewBuilder
     private func list(_ history: HistoryModel) -> some View {
         if history.items.isEmpty {
             Spacer()
@@ -142,14 +126,8 @@ struct HistoryView: View {
         } else {
             ScrollView {
                 VStack(spacing: 14) {
-                    InkCard(padding: 0) {
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(history.items.enumerated()), id: \.element.id) { index, analysis in
-                                HistoryRow(analysis: analysis, showsDivider: index < history.items.count - 1) {
-                                    openID = analysis.id
-                                }
-                            }
-                        }
+                    InkItemList(items: history.items) { analysis in
+                        HistoryRow(analysis: analysis) { path.append(analysis.id) }
                     }
                     if history.hasMore {
                         Button {
@@ -186,57 +164,23 @@ struct HistoryView: View {
     }
 }
 
-/// Fixed-height row, like Knowledge's, so the list keeps an even rhythm.
 private struct HistoryRow: View {
     let analysis: AnalysisDTO
-    let showsDivider: Bool
     let open: () -> Void
 
-    @State private var isHovering = false
-
     var body: some View {
-        VStack(spacing: 0) {
-            Button(action: open) {
-                HStack(spacing: 12) {
-                    StateMark(state: analysis.state)
-                        .frame(width: 22)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(analysis.historyTitle)
-                            .font(.system(size: 14))
-                            .foregroundStyle(Ink.text)
-                            .lineLimit(1)
-                        Text(analysis.resultLine())
-                            .font(.system(size: 12))
-                            .foregroundStyle(analysis.isFailure ? Ink.danger : Ink.muted)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 8)
-
-                    Text(analysis.stateLabel)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(analysis.isTerminal ? Ink.muted : Ink.text)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Ink.input, in: .rect(cornerRadius: 5))
-
-                    Text(historyWhen(analysis.createdDate))
-                        .font(.system(size: 12))
-                        .foregroundStyle(Ink.muted)
-                        .frame(width: 96, alignment: .trailing)
-                }
-                .padding(.horizontal, 16)
-                .frame(height: 58)
-                .background(isHovering ? Ink.input.opacity(0.55) : .clear)
-                .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .onHover { isHovering = $0 }
-
-            if showsDivider {
-                Rectangle().fill(Ink.cardRule).frame(height: 1)
-            }
+        InkListRow(
+            title: analysis.historyTitle,
+            subtitle: analysis.resultLine(),
+            subtitleColor: analysis.isFailure ? Ink.danger : Ink.muted,
+            action: open
+        ) {
+            StateMark(state: analysis.state)
+        } metadata: {
+            Text(analysis.stateLabel)
+                .foregroundStyle(analysis.isTerminal ? Ink.secondary : Ink.text)
+            Text(historyWhen(analysis.createdDate))
+                .frame(width: 96, alignment: .trailing)
         }
     }
 }
@@ -267,30 +211,20 @@ private struct HistoryDetail: View {
     let analysis: AnalysisDTO
     let history: HistoryModel
     let displayNames: [String: String]
-    let back: () -> Void
+    @State private var showDetails = false
 
     private var events: [AnalysisEventDTO] { history.events[analysis.id] ?? [] }
     private var attempts: [TimelineAttempt] { AnalysisTimeline.build(events, displayNames: displayNames) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button(action: back) {
-                Label("History", systemImage: "chevron.left")
-            }
-            .buttonStyle(.plain)
-            .font(.system(size: 13))
-            .foregroundStyle(Ink.secondary)
-            .keyboardShortcut(.escape, modifiers: [])
-            .padding(.horizontal, 28)
-            .padding(.top, 18)
-
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     header
                     timeline
                 }
                 .padding(.horizontal, 28)
-                .padding(.top, 16)
+                .padding(.top, 26)
                 .padding(.bottom, 24)
             }
             .scrollIndicators(.never)
@@ -303,7 +237,7 @@ private struct HistoryDetail: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 StateMark(state: analysis.liveState(events: events))
-                SectionLabel(AnalysisCopy.stateLabel(analysis.liveState(events: events)))
+                Text(AnalysisCopy.stateLabel(analysis.liveState(events: events))).font(.system(size: 13)).foregroundStyle(Ink.secondary)
             }
             Text(analysis.historyTitle)
                 .font(.brand(28))
@@ -317,18 +251,16 @@ private struct HistoryDetail: View {
                 meta("Looked at", analysis.contextLabel)
                 meta("When", historyWhen(analysis.createdDate))
             }
-            .padding(.top, 2)
+            .padding(.top, 12)
         }
     }
 
     private func meta(_ label: String, _ value: String) -> some View {
-        HStack(spacing: 5) {
-            Text(label)
-                .foregroundStyle(Ink.muted)
-            Text(value)
-                .foregroundStyle(Ink.secondary)
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label).font(.system(size: 12)).foregroundStyle(Ink.secondary)
+            Text(value).font(.system(size: 13)).foregroundStyle(Ink.text)
         }
-        .font(.system(size: 12))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var timeline: some View {
@@ -338,6 +270,9 @@ private struct HistoryDetail: View {
                     SectionLabel("Timeline")
                     Spacer()
                     statusLine
+                    Toggle("Show details", isOn: $showDetails)
+                        .toggleStyle(.checkbox).font(.system(size: 12))
+                        .padding(.leading, 12)
                 }
                 .padding(.bottom, 6)
 
@@ -352,7 +287,7 @@ private struct HistoryDetail: View {
                             attemptDivider(attempt.attempt)
                         }
                         ForEach(attempt.rows) { row in
-                            TimelineRowView(row: row)
+                            TimelineRowView(row: row, showDetails: showDetails)
                         }
                     }
                     if let error = history.timelineErrors[analysis.id] {
@@ -392,7 +327,6 @@ private struct HistoryDetail: View {
         HStack(spacing: 8) {
             Text("Attempt \(attempt)")
                 .font(.system(size: 11, weight: .medium))
-                .tracking(0.8)
                 .foregroundStyle(Ink.muted)
             Rectangle().fill(Ink.cardRule).frame(height: 1)
         }
@@ -403,6 +337,7 @@ private struct HistoryDetail: View {
 
 private struct TimelineRowView: View {
     let row: TimelineRow
+    var showDetails = false
 
     private var color: Color {
         switch row.tone {
@@ -429,7 +364,7 @@ private struct TimelineRowView: View {
                         Circle().fill(Ink.online).frame(width: 6, height: 6)
                     }
                 }
-                if let note = row.note {
+                if let note = row.note, showDetails || row.tone != .info {
                     Text(note)
                         .font(.system(size: 13))
                         .foregroundStyle(Ink.muted)
@@ -441,7 +376,7 @@ private struct TimelineRowView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Ink.muted)
                 }
-                if !row.facts.isEmpty {
+                if showDetails && !row.facts.isEmpty {
                     HStack(spacing: 12) {
                         ForEach(row.facts, id: \.label) { fact in
                             (Text("\(fact.label): ").foregroundStyle(factColor(fact.tone))

@@ -40,12 +40,11 @@ struct HomeView: View {
     private var greeting: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
+                Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
                     .font(.system(size: 13, weight: .medium))
-                    .tracking(1.6)
                     .foregroundStyle(Ink.muted)
                 Text("Hi, \(model.account.username)!")
-                    .font(.brand(40))
+                    .font(InkType.title)
                     .foregroundStyle(Ink.text)
             }
             Spacer(minLength: 12)
@@ -164,11 +163,13 @@ struct HomeView: View {
     private var activity: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
-                SectionLabel("Building your second brain")
+                SectionLabel("Activity")
                 Spacer()
-                Text("\(total) items · \(streak) day streak")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Ink.secondary)
+                HStack(spacing: 20) {
+                    Text("\(total) items saved")
+                    Text("\(streak) day streak")
+                }
+                .font(.system(size: 13)).foregroundStyle(Ink.secondary)
             }
             HeatmapView(counts: model.activityByDay)
         }

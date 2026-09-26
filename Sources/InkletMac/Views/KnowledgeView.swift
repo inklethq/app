@@ -2,6 +2,7 @@ import SwiftUI
 
 struct KnowledgeView: View {
     @Environment(AppModel.self) private var model
+    @Binding var path: NavigationPath
 
     enum Filter: String, CaseIterable, Identifiable {
         case organized = "Organized"
@@ -18,12 +19,19 @@ struct KnowledgeView: View {
     @State private var searchError: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            masthead
-            list
+        NavigationStack(path: $path) {
+            VStack(alignment: .leading, spacing: 0) {
+                masthead
+                list
+            }
+            .background(Ink.bg)
+            .navigationTitle("Knowledge")
+            .toolbar { ComposerToolbar() }
+            .toolbarBackground(.hidden, for: .windowToolbar)
+            .navigationDestination(for: KnowledgeItem.self) { item in
+                KnowledgeDetailView(item: item).id(item.id)
+            }
         }
-        .background(Ink.bg)
-        .navigationTitle("Knowledge")
         // Settle for a moment, then ask the backend: it searches the whole
         // library — titles, note text, links, filenames, and what the ingest
         // worker read out of images and files — not just what is loaded here.
@@ -48,49 +56,24 @@ struct KnowledgeView: View {
     }
 
     private var masthead: some View {
-        HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 6) {
-                SectionLabel("Your second brain")
-                Text("Knowledge")
-                    .font(.brand(34))
-                    .foregroundStyle(Ink.text)
-            }
-            Spacer(minLength: 20)
-            HStack(spacing: 22) {
-                stat("\(model.knowledge.count)", "items")
-                stat("\(organizedCount)", "organized")
-                stat("\(model.knowledge.count - organizedCount)", "pending")
-            }
-            .padding(.bottom, 4)
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Knowledge").font(InkType.title).foregroundStyle(Ink.text)
+            Text("Browse and read the things you’ve saved.")
+                .font(.system(size: 13)).foregroundStyle(Ink.secondary)
         }
-        .padding(.horizontal, 28)
-        .padding(.top, 26)
-        .padding(.bottom, 20)
-    }
-
-    private func stat(_ value: String, _ label: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 5) {
-            Text(value)
-                .font(.brand(19))
-                .foregroundStyle(Ink.text)
-            Text(label)
-                .font(.system(size: 12))
-                .foregroundStyle(Ink.muted)
-        }
+        .padding(.horizontal, 28).padding(.top, 26).padding(.bottom, 20)
     }
 
     private var list: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                // Back to the tinted SwiftUI picker: the AppKit control keeps its
-                // glass but paints the selection with the system accent, and blue
-                // is worse here than losing the material.
-                Picker("Filter", selection: $filter) {
+                InkSegmentedPicker(title: "Filter", selection: $filter) {
                     ForEach(Filter.allCases) { Text($0.rawValue).tag($0) }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
+
+                Text("\(model.knowledge.count) saved items")
+                    .font(InkType.metadata).foregroundStyle(Ink.muted)
+                    .fixedSize()
 
                 Spacer()
 
@@ -114,12 +97,9 @@ struct KnowledgeView: View {
                 Spacer()
             } else {
                 ScrollView {
-                    InkCard(padding: 0) {
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                                KnowledgeRow(item: item, showsDivider: index < items.count - 1)
-                            }
-                        }
+                    InkItemList(items: items) { item in
+                        KnowledgeRow(item: item) { path.append(item) }
+                            .help("Read \(item.title ?? "item")")
                     }
                     .padding(.horizontal, 28)
                     .padding(.bottom, resultsTruncated ? 8 : 24)
@@ -157,53 +137,25 @@ struct KnowledgeView: View {
     }
 }
 
-/// Fixed-height row so the list keeps an even rhythm regardless of subtitle.
 private struct KnowledgeRow: View {
     let item: KnowledgeItem
-    let showsDivider: Bool
+    let open: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Image(systemName: item.kind?.symbol ?? "square.stack")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Ink.secondary)
-                    .frame(width: 22)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    // The title arrives with a second request, so an unresolved
-                    // row shows a placeholder rather than collapsing in height.
-                    Text(item.title ?? "Loading…")
-                        .font(.system(size: 14))
-                        .foregroundStyle(item.title == nil ? Ink.muted : Ink.text)
-                        .lineLimit(1)
-                    Text(item.detail ?? item.kind?.rawValue ?? " ")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Ink.muted)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
+        InkListRow(
+            title: item.title ?? "Loading…",
+            subtitle: item.detail ?? item.kind?.rawValue,
+            titleColor: item.title == nil ? Ink.muted : Ink.text,
+            action: open
+        ) {
+            Image(systemName: item.kind?.symbol ?? "square.stack")
+        } metadata: {
+            if item.processStatus == .failed || item.processStatus == .uploading {
                 Text(item.processStatus.label)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(item.processStatus == .ready ? Ink.muted : Ink.text)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Ink.input, in: .rect(cornerRadius: 5))
-
-                Text(relativeTime(item.createdAt))
-                    .font(.system(size: 12))
-                    .foregroundStyle(Ink.muted)
-                    .frame(width: 62, alignment: .trailing)
+                    .foregroundStyle(item.processStatus == .failed ? Ink.danger : Ink.secondary)
             }
-            .padding(.horizontal, 16)
-            .frame(height: 58)
-            .contentShape(.rect)
-
-            if showsDivider {
-                Rectangle().fill(Ink.cardRule).frame(height: 1)
-            }
+            Text(relativeTime(item.createdAt))
+                .frame(width: 96, alignment: .trailing)
         }
     }
 }

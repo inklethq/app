@@ -75,7 +75,7 @@ private func events(_ json: String) -> [AnalysisEventDTO] {
     let attempts = AnalysisTimeline.build(stream)
     #expect(attempts.count == 1)
     let rows = attempts[0].rows
-    #expect(rows.map(\.text) == ["Analysis created", "Read 3 notes", "Looking at layouts · 2 so far"])
+    #expect(rows.map(\.text) == ["Analysis created", "Read 3 notes", "Looking at layouts (2 so far)"])
     #expect(rows[1].id == "activity-1-read")
     #expect(!rows[1].live)
     #expect(rows[2].live)
@@ -127,11 +127,11 @@ private func events(_ json: String) -> [AnalysisEventDTO] {
         return AnalysisTimeline.activityText(event.data!)
     }
     #expect(text(#"{"activityId":"a","kind":"checking_display","state":"failed","steps":1,"stats":{"failedSteps":1}}"#)
-            == "Checked the display · 1 step failed")
+            == "Checked the display. 1 step failed")
     #expect(text(#"{"activityId":"a","kind":"checking_display","state":"failed","steps":1,"stats":{}}"#)
             == "Checking the display — failed")
     #expect(text(#"{"activityId":"a","kind":"choosing_layout","state":"done","steps":4,"stats":{"layoutsSeen":3,"chosen":"Small Panel Card"}}"#)
-            == "Looked at 3 layouts · chose Small Panel Card")
+            == "Looked at 3 layouts, chose Small Panel Card")
     #expect(text(#"{"activityId":"a","kind":"other","state":"active","steps":2,"stats":{"deniedSteps":1}}"#)
-            == "Working · 2 steps · 1 step blocked")
+            == "Working through 2 steps. 1 step blocked")
 }

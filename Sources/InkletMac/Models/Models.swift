@@ -213,7 +213,7 @@ struct KnowledgeItem: Identifiable, Hashable {
         } else if let firstLine {
             title = firstLine
         } else if let link = links.first?.url {
-            title = link
+            title = URL(string: link)?.host()?.replacingOccurrences(of: "www.", with: "") ?? link
         } else if !images.isEmpty {
             title = images.count == 1 ? (images.first?.filename ?? "Image") : "\(images.count) images"
         } else if !files.isEmpty {
@@ -233,7 +233,10 @@ struct KnowledgeItem: Identifiable, Hashable {
         if !images.isEmpty { parts.append("\(images.count) image\(images.count == 1 ? "" : "s")") }
         if !files.isEmpty { parts.append("\(files.count) file\(files.count == 1 ? "" : "s")") }
         if let failure = dto.failure, processStatus == .failed { parts.append(failure.message) }
-        detail = parts.isEmpty ? nil : parts.joined(separator: " · ")
+        detail = parts.isEmpty ? nil : parts.joined(separator: ", ")
+        if dto.assets.count == 1, let raw = links.first?.url, let url = URL(string: raw) {
+            detail = url.path.isEmpty || url.path == "/" ? raw : (url.path.removingPercentEncoding ?? url.path)
+        }
     }
 }
 
