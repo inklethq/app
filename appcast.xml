@@ -3,6 +3,26 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.3.2</title>
+            <pubDate>Sat, 26 Sep 2026 20:56:15 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>0.3.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.3.2
+
+Fixes
+- You stay signed in across updates. Sessions could be lost when the app
+  was replaced, which made every update ask for your password again.
+
+Changes
+- The sign-in page now says what inklet is for: your second brain, on
+  e-ink displays.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.3.2/inklet-portal-0.3.2-mac-universal.dmg" length="9640065" type="application/octet-stream" sparkle:edSignature="MVLml2DuHXnFakYEYipSGjEgy7hyHNHEZApFpJgqpi/bqJQlJGsiBB959YMmartmPAl6wmjCsOA40rL7A9UpDQ=="/>
+        </item>
+        <item>
             <title>0.3.1</title>
             <pubDate>Sat, 26 Sep 2026 08:59:57 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
@@ -42,23 +62,6 @@ New
 
 ]]></description>
             <enclosure url="https://github.com/inklethq/app/releases/download/v0.3.0/inklet-portal-0.3.0-mac-universal.dmg" length="9150323" type="application/octet-stream" sparkle:edSignature="l98tF9Rrg5qnb4snA/SQg3gGe6mofsJqsnUH/QjL05uHDZyuRcU/ZgpWasX6nxkI3Xi68+3OnBoNYY6ETyHvCg=="/>
-        </item>
-        <item>
-            <title>0.2.5</title>
-            <pubDate>Thu, 24 Sep 2026 07:20:43 +0000</pubDate>
-            <link>https://github.com/inklethq/app/releases</link>
-            <sparkle:version>19</sparkle:version>
-            <sparkle:shortVersionString>0.2.5</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.2.5
-
-New
-- Knowledge search now looks through your whole library on the server:
-  titles, note text, links, filenames, and what inklet read out of your
-  images and files. It no longer matches only the rows already loaded.
-
-]]></description>
-            <enclosure url="https://github.com/inklethq/app/releases/download/v0.2.5/inklet-portal-0.2.5-mac-universal.dmg" length="8739214" type="application/octet-stream" sparkle:edSignature="Y45K2aZIg72qcTS2O9G+oPM39m28fn5QHgaMvjI/0IHn1B1ga7NHMcEVlonGrjhA/DseamHy6TGRJlxoPRsBCA=="/>
         </item>
         <item>
             <title>0.2.4-alpha.4</title>
