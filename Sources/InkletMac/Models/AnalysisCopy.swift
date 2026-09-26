@@ -297,7 +297,7 @@ enum AnalysisTimeline {
         var parts: [String] = []
         if failedSteps > 0 { parts.append("\(AnalysisCopy.plural(failedSteps, "step")) failed") }
         if deniedSteps > 0 { parts.append("\(AnalysisCopy.plural(deniedSteps, "step")) blocked") }
-        let suffix = parts.isEmpty ? "" : " · " + parts.joined(separator: " · ")
+        let suffix = parts.isEmpty ? "" : ". " + parts.joined(separator: ", ")
 
         let state = data["state"]?.stringValue ?? "active"
         let failed = state == "failed"
@@ -315,7 +315,7 @@ enum AnalysisTimeline {
             guard let read = stats["notesRead"]?.numberValue.map({ Int($0) }) else {
                 return done ? "Read your notes" : "Reading your notes"
             }
-            return done ? "Read \(AnalysisCopy.plural(read, "note"))" : "Reading your notes · \(read) read"
+            return done ? "Read \(AnalysisCopy.plural(read, "note"))" : "Reading your notes (\(read) read)"
         case "checking_display":
             return done ? "Checked the display" : "Checking the display"
         case "choosing_layout":
@@ -326,11 +326,11 @@ enum AnalysisTimeline {
             }
             if done {
                 let looked = "Looked at \(AnalysisCopy.plural(seen, "layout"))"
-                return chosen.map { "\(looked) · chose \($0)" } ?? looked
+                return chosen.map { "\(looked), chose \($0)" } ?? looked
             }
             // A layout it has settled on outranks the running count: it is the
             // answer the activity exists to produce.
-            return chosen.map { "Chose \($0)" } ?? "Looking at layouts · \(seen) so far"
+            return chosen.map { "Chose \($0)" } ?? "Looking at layouts (\(seen) so far)"
         case "submitting_plan":
             // "Checking" while it runs, because the backend is validating it
             // and it may yet come back; "Submitted" once it has gone through.
@@ -339,7 +339,7 @@ enum AnalysisTimeline {
             return done ? "Tried another layout" : "Trying another layout"
         default:
             if steps <= 0 { return done ? "Worked through it" : "Working" }
-            return done ? "Worked through \(AnalysisCopy.plural(steps, "step"))" : "Working · \(AnalysisCopy.plural(steps, "step"))"
+            return done ? "Worked through \(AnalysisCopy.plural(steps, "step"))" : "Working through \(AnalysisCopy.plural(steps, "step"))"
         }
     }
 

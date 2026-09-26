@@ -135,6 +135,15 @@ final class AskModel {
         }
     }
 
+    func rename(_ id: String, title: String) async throws {
+        let expected = generation
+        let updated = try await InkletAPI.shared.renameConversation(id: id, title: title)
+        guard generation == expected else { return }
+        if let index = conversations.firstIndex(where: { $0.id == id }) {
+            conversations[index] = updated
+        }
+    }
+
     func delete(_ id: String) async {
         let expected = generation
         do {

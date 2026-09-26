@@ -9,7 +9,6 @@ struct VirtualDisplayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 VStack(alignment: .leading, spacing: 6) {
-                    SectionLabel("On this Mac")
                     Text("Virtual Display")
                         .font(.brand(34))
                     Text("Your latest Presentation, at home on your desktop.")

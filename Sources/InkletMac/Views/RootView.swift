@@ -18,32 +18,34 @@ struct RootView: View {
     @Environment(WidgetRouter.self) private var widgetRouter
     @Environment(\.scenePhase) private var scenePhase
     @State private var selection: SidebarItem? = .home
+    @State private var askPath = NavigationPath()
+    @State private var historyPath = NavigationPath()
+    @State private var knowledgePath = NavigationPath()
 
     var body: some View {
         @Bindable var model = model
 
         NavigationSplitView {
-            Sidebar(selection: $selection)
+            Sidebar(selection: Binding(
+                get: { selection },
+                set: { item in
+                    askPath = NavigationPath()
+                    historyPath = NavigationPath()
+                    knowledgePath = NavigationPath()
+                    selection = item
+                }
+            ))
                 .navigationSplitViewColumnWidth(min: 208, ideal: 228, max: 300)
         } detail: {
             detail
+                // Keep each sidebar page's navigation column identity separate;
+                // SwiftUI cannot compare the different destination value types.
+                .id(selection)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Ink.bg.ignoresSafeArea())
                 .toolbar {
-                    // Without a titlebar there is nothing to push trailing items
-                    // over — neither `.primaryAction` nor the default placement
-                    // moves them off the leading edge. A flexible spacer is what
-                    // actually claims the gap. It is a macOS 26 API; on 15 the
-                    // trailing placement below does the job on its own.
-                    if #available(macOS 26.0, *) {
-                        ToolbarSpacer(.flexible)
-                    }
-
-                    // One composer entry point for the whole window, so the popover
-                    // always has a stable anchor no matter which page is showing.
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("Create", systemImage: "square.and.pencil") { model.startComposing() }
-                            .help("Create an inklet Presentation (\(ShortcutStore.shared.shortcut.display))")
+                    if selection != .ask && selection != .history && selection != .knowledge {
+                        ComposerToolbar()
                     }
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -51,6 +53,13 @@ struct RootView: View {
                         ErrorBar(message: error) { Task { await model.refresh() } }
                     }
                 }
+        }
+        .onChange(of: selection) { previous, _ in
+            // Preserve an incoming History deep link while dismissing the page
+            // being left, including navigation initiated outside the sidebar.
+            if previous == .ask { askPath = NavigationPath() }
+            if previous == .history { historyPath = NavigationPath() }
+            if previous == .knowledge { knowledgePath = NavigationPath() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await model.virtualDisplays.refresh() } }
@@ -95,11 +104,11 @@ struct RootView: View {
         case .home:
             HomeView(selection: $selection)
         case .knowledge:
-            KnowledgeView()
+            KnowledgeView(path: $knowledgePath)
         case .ask:
-            AskView()
+            AskView(path: $askPath)
         case .history:
-            HistoryView()
+            HistoryView(path: $historyPath)
         case .virtualDisplayDetail(let id):
             NavigationStack { VirtualDisplayDetailView(id: id).id(id) }
         case .newDisplay:
@@ -120,6 +129,33 @@ struct RootView: View {
             }
         case nil:
             ContentUnavailableView("Nothing selected", systemImage: "sidebar.left")
+        }
+    }
+}
+
+/// Shared by the window's pages and each native navigation destination.
+/// A pushed destination owns its toolbar, so it must also supply Create.
+struct ComposerToolbar: ToolbarContent {
+    @Environment(AppModel.self) private var model
+    var newConversation: (() -> Void)? = nil
+
+    var body: some ToolbarContent {
+        if #available(macOS 26.0, *) {
+            ToolbarSpacer(.flexible)
+        }
+        if let newConversation {
+            ToolbarItem(placement: .primaryAction) {
+                Button("New conversation", systemImage: "plus", action: newConversation)
+                    .help("New conversation")
+                    .disabled(model.ask.isSending)
+            }
+            if #available(macOS 26.0, *) {
+                ToolbarSpacer(.fixed)
+            }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button("Create", systemImage: "square.and.pencil") { model.startComposing() }
+                .help("Create an inklet Presentation (\(ShortcutStore.shared.shortcut.display))")
         }
     }
 }
@@ -195,7 +231,9 @@ private struct GroupLabel: View {
     }
 
     var body: some View {
-        SectionLabel(title)
+        Text(title)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(Ink.secondary)
             .padding(.leading, 10)
             .padding(.top, topPadding)
             .padding(.bottom, 3)
@@ -316,9 +354,8 @@ private struct AccountBar: View {
                     Text(model.account.username)
                         .font(.system(size: 14))
                         .foregroundStyle(Ink.text)
-                    Text(model.account.plan.uppercased())
-                        .font(.system(size: 10, weight: .medium))
-                        .tracking(0.8)
+                    Text(model.account.plan.capitalized)
+                        .font(.system(size: 12))
                         .foregroundStyle(Ink.muted)
                 }
 

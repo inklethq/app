@@ -137,7 +137,7 @@ struct DeviceDetailView: View {
                                     .font(.system(size: 14))
                                     .foregroundStyle(Ink.text)
                                     .lineLimit(1)
-                                Text("\(upNext.status.label) · added \(relativeTime(upNext.createdAt))")
+                                Text("Added \(relativeTime(upNext.createdAt))")
                                     .font(.system(size: 12))
                                     .foregroundStyle(Ink.muted)
                                     .lineLimit(1)

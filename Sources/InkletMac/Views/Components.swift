@@ -136,9 +136,8 @@ struct DisplayFrame: View {
             } else if let title {
                 VStack(spacing: width * 0.035) {
                     if let subtitle {
-                        Text(subtitle.uppercased())
+                        Text(subtitle)
                             .font(.system(size: max(7, width * 0.026), weight: .medium))
-                            .tracking(1.2)
                             .foregroundStyle(.black.opacity(0.42))
                             .lineLimit(1)
                     }

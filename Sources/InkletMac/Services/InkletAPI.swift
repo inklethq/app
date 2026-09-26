@@ -297,6 +297,14 @@ actor InkletAPI {
         return try await authed(path)
     }
 
+    func content(id: String) async throws -> ContentDTO {
+        try await authed("api/app/v1/contents/\(id)")
+    }
+
+    func readContentAsset(contentID: String, index: Int, offset: Int = 0) async throws -> ContentAssetReading {
+        try await authed("api/app/v1/contents/\(contentID)/assets/\(index)/reading?offset=\(offset)")
+    }
+
     // MARK: - Conversations (Ask inklet, `/api/app/v1/conversations`)
 
     func conversations(cursor: String? = nil, limit: Int = 50) async throws -> ConversationPageDTO {
@@ -321,6 +329,10 @@ actor InkletAPI {
         var path = "api/app/v1/conversations/\(id)/messages?limit=\(min(max(limit, 1), 50))"
         if let before { path += "&before=\(before)" }
         return try await authed(path)
+    }
+
+    func renameConversation(id: String, title: String) async throws -> ConversationDTO {
+        try await authed("api/app/v1/conversations/\(id)", method: "PATCH", jsonObject: ["title": title])
     }
 
     func deleteConversation(id: String) async throws {

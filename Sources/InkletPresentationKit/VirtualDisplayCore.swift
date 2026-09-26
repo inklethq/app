@@ -31,10 +31,10 @@ nonisolated public enum VirtualDisplaySizeProfile: String, CaseIterable, Codable
     public var height: Int { switch self { case .iosLarge, .legacy: 376; default: 360 } }
     public var title: String {
         switch self {
-        case .macLarge: "Mac · Large"
-        case .macExtraLarge: "Mac · Extra Large"
-        case .iosLarge: "iPhone / iPad · Large"
-        case .ipadExtraLarge: "iPad · Extra Large"
+        case .macLarge: "Large on Mac"
+        case .macExtraLarge: "Extra Large on Mac"
+        case .iosLarge: "Large on iPhone and iPad"
+        case .ipadExtraLarge: "Extra Large on iPad"
         case .legacy: "Original display"
         }
     }
