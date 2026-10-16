@@ -5,20 +5,27 @@ import SwiftUI
 /// than a popover, so the file chooser and app switches don't dismiss it.
 ///
 /// A draft is sent with an *action* (what to do with it) to a *target* (where
-/// it goes), the same two choices the web Portal's composer offers:
+/// it goes), the same two choices the web Portal's composer offers, picked
+/// from two menus of the same kind side by side, with the send button on its
+/// own after them:
 ///
 /// - Just upload (⌥1): save the material, no AI run.
 /// - Push to device (⌥2): one AI run over this note.
 /// - Recent summary (⌥3): this note plus the last week.
 /// - Show as-is (⌥4): one picture straight to a display, no AI.
 ///
-/// ⌘↩ sends. Plain Return is a newline in the field, which is what a text
-/// field owes the person typing into it.
+/// The action picked last comes back next time. ⌘↩ sends. Plain Return is a
+/// newline in the field, which is what a text field owes the person typing
+/// into it.
 struct ComposerView: View {
     @Environment(AppModel.self) private var model
 
     @State private var text = ""
     @State private var action: ComposeAction = .upload
+    /// The action the user last picked, by menu or ⌥n — never one the
+    /// composer chose for them, such as stepping off Show as-is when the
+    /// draft stops being one picture.
+    @AppStorage("composer.lastAction") private var lastActionRaw = ComposeAction.upload.rawValue
     @State private var destination: AppModel.ComposeTarget = .agent
     @State private var generationID = UUID()
     @State private var virtualBaseRevision: Int64?
@@ -107,19 +114,43 @@ struct ComposerView: View {
         }
     }
 
-    /// A pinned target arrives from a display page and pre-selects a card; a
-    /// plain summon starts on "just upload" every time, so the expensive
-    /// actions are never fired by a remembered preference.
+    private var remembered: ComposeAction { ComposeAction(rawValue: lastActionRaw) ?? .upload }
+
+    /// The menu and ⌥n go through here, so only a choice the user made is
+    /// remembered.
+    private func choose(_ candidate: ComposeAction) {
+        action = candidate
+        lastActionRaw = candidate.rawValue
+    }
+
+    /// The action picked last time comes back with the panel; nothing sends
+    /// until the send button or ⌘↩ says so. A display page pins its display,
+    /// and Just upload would send nothing to it, so that summon starts on Push
+    /// to device. Show as-is depends on the draft — one picture and nothing
+    /// else — so an empty draft starts on Push to device too, and the picture
+    /// that makes it possible switches it back (`followDraft`).
     private func syncTarget() {
         if let target = model.composerTarget {
             destination = .hardware(target.id)
-            action = .card
         } else if let id = model.composerVirtualTargetID {
             destination = .virtual(id)
-            action = .card
         } else {
             destination = .agent
-            action = .upload
+        }
+        var start = remembered
+        if start == .upload, destination != .agent { start = .card }
+        if start == .asIs, !asIsEligible { start = .card }
+        action = start
+    }
+
+    /// Show as-is is offered only while the draft is what it takes. Losing it
+    /// steps to Push to device; regaining it, when it was the remembered
+    /// choice, steps back.
+    private func followDraft() {
+        if action == .asIs, !asIsEligible {
+            action = .card
+        } else if remembered == .asIs, action == .card, asIsEligible {
+            action = .asIs
         }
     }
 
@@ -191,14 +222,14 @@ struct ComposerView: View {
 
     var body: some View {
         composerBody
-            .onChange(of: text) { _, _ in generationID = UUID(); virtualBaseRevision = nil }
+            .onChange(of: text) { _, _ in generationID = UUID(); virtualBaseRevision = nil; followDraft() }
             .onChange(of: attachments.map { $0.id }) { _, _ in
                 generationID = UUID(); virtualBaseRevision = nil
-                if action == .asIs, !asIsEligible { action = .card }
+                followDraft()
             }
             .onChange(of: destination) { _, _ in
                 generationID = UUID(); virtualBaseRevision = nil; error = nil
-                if action == .asIs, !asIsEligible { action = .card }
+                followDraft()
             }
             .onChange(of: action) { _, _ in error = nil }
     }
@@ -338,8 +369,9 @@ struct ComposerView: View {
         .foregroundStyle(error == nil ? Ink.muted : Ink.danger)
     }
 
-    /// Target picker and the split send button never move; they sit at the
-    /// right edge and the attachment tools at the left.
+    /// The attachment tools at the left; at the right, what to do, where it
+    /// goes, and the button that does it — two menus of the same kind and a
+    /// plain button, none of which moves.
     private var toolbar: some View {
         HStack(spacing: 8) {
             Button("Attach File", systemImage: "paperclip") { chooseFiles() }
@@ -351,38 +383,38 @@ struct ComposerView: View {
 
             Spacer(minLength: 8)
 
+            actionPicker
+
             ComposerTargetPicker(controller: model.virtualDisplays, devices: model.devices, selection: $destination)
-                .frame(maxWidth: 190)
+                .frame(maxWidth: 170)
                 .disabled(action == .upload)
                 .help(action == .upload ? "Just upload saves the note without sending it anywhere." : "Where the card goes.")
 
             sendButton
         }
         .disabled(isSending)
+        .background { hiddenShortcuts }
     }
 
     private var canSend: Bool { hasContent && !isSending && pendingReads == 0 && blocker == nil }
 
-    /// The face names the action; the menu lists the rest. Pressing the face
-    /// sends, and so does ⌘↩. Each item carries ⌥1…⌥4, which work with the
-    /// menu closed — a shortcut on the Menu itself would land on every item
-    /// (that is how Return used to pick "Just upload" instead of sending).
-    private var sendButton: some View {
-        Menu {
+    /// What to do with the draft, picked the same way as where it goes. The
+    /// menu shows each option's name; the tooltip says what it costs.
+    private var actionPicker: some View {
+        Picker("Send option", selection: Binding(get: { action }, set: { choose($0) })) {
             ForEach(actions) { candidate in
-                Button {
-                    action = candidate
-                } label: {
-                    if candidate == action {
-                        Label(candidate.menuTitle, systemImage: "checkmark")
-                    } else {
-                        Text(candidate.menuTitle)
-                    }
-                }
-                .keyboardShortcut(candidate.shortcutKey, modifiers: .option)
-                .help(candidate.menuHint)
+                Label(candidate.menuTitle, systemImage: candidate.symbol).tag(candidate)
             }
-        } label: {
+        }
+        .labelsHidden()
+        .fixedSize()
+        .help(action.menuHint)
+    }
+
+    /// Does what the two menus say. Its own button now, so ⌘↩ sits on it
+    /// directly — it no longer shares a control with the options.
+    private var sendButton: some View {
+        Button(action: send) {
             HStack(spacing: 6) {
                 if isSending {
                     ProgressView().controlSize(.small)
@@ -390,32 +422,22 @@ struct ComposerView: View {
                     Image(systemName: action == .upload ? "tray.and.arrow.down" : "arrow.up")
                         .font(.system(size: 11, weight: .semibold))
                 }
-                Text(action.menuTitle)
-                    .lineLimit(1)
+                Text(action == .upload ? "Save" : "Send")
             }
-        } primaryAction: {
-            send()
         }
-        .menuStyle(.button)
         .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.return, modifiers: .command)
         .fixedSize()
         .disabled(!canSend)
-        .help("\(action.menuHint) · ⌘↩ to send")
-        .background { hiddenShortcuts }
+        .help(action == .upload ? "Save to Knowledge · ⌘↩" : "Send · ⌘↩")
     }
 
-    /// The key equivalents, on buttons of their own. ⌘↩ cannot sit on the Menu
-    /// — a shortcut there propagates to the items, which is how Return used to
-    /// pick "Just upload" — and the items' own ⌥n are only certain to fire
-    /// while the menu is open, so each mode gets a closed-menu twin here. The
-    /// items keep theirs for the hint the menu draws beside them.
+    /// ⌥1…⌥4 pick an option with the menu closed: a Picker's items carry no
+    /// key equivalents of their own, so each option gets a hidden twin here.
     private var hiddenShortcuts: some View {
         Group {
-            Button("Send", action: send)
-                .keyboardShortcut(.return, modifiers: .command)
-                .disabled(!canSend)
             ForEach(actions) { candidate in
-                Button(candidate.menuTitle) { action = candidate }
+                Button(candidate.menuTitle) { choose(candidate) }
                     .keyboardShortcut(candidate.shortcutKey, modifiers: .option)
             }
         }
@@ -436,7 +458,7 @@ struct ComposerView: View {
                 Spacer()
                 Button("Add", action: commitLink)
                     .buttonStyle(.borderedProminent)
-                    .disabled(URL(string: linkDraft)?.scheme == nil)
+                    .disabled(AttachmentRules.link(from: linkDraft) == nil)
             }
         }
         .padding(14)
@@ -444,13 +466,14 @@ struct ComposerView: View {
 
     // MARK: - Actions
 
+    /// Only a link the backend will take gets as far as the draft; `example.com`
+    /// typed bare is read as https.
     private func commitLink() {
-        let trimmed = linkDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: trimmed), url.scheme != nil else { return }
-        add(Attachment(filename: url.host() ?? trimmed,
+        guard let link = AttachmentRules.link(from: linkDraft) else { return }
+        add(Attachment(filename: URL(string: link)?.host() ?? link,
                        contentType: "text/uri-list",
                        data: Data(),
-                       link: trimmed))
+                       link: link))
         linkDraft = ""
         isAddingLink = false
     }
@@ -512,10 +535,16 @@ struct ComposerView: View {
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self]) as? [URL], !urls.isEmpty {
             attach(urls.filter(\.isFileURL))
             for url in urls where !url.isFileURL {
-                add(Attachment(filename: url.host() ?? url.absoluteString,
-                               contentType: "text/uri-list",
-                               data: Data(),
-                               link: url.absoluteString))
+                // A web link becomes a link; anything else (mailto:, an app's
+                // own scheme) would be refused as one, so it goes in as text.
+                if let link = AttachmentRules.link(from: url.absoluteString) {
+                    add(Attachment(filename: URL(string: link)?.host() ?? link,
+                                   contentType: "text/uri-list",
+                                   data: Data(),
+                                   link: link))
+                } else {
+                    text += text.isEmpty ? url.absoluteString : "\n\(url.absoluteString)"
+                }
             }
             return
         }
@@ -557,7 +586,7 @@ struct ComposerView: View {
                 if let id = selectedVirtualID, selectedAction != .upload {
                     if virtualBaseRevision == nil { virtualBaseRevision = model.virtualDisplays.displays.first { $0.id == id }?.revision }
                     guard let virtualBaseRevision else { throw VirtualDisplayError.message("This display is unavailable.") }
-                    try await model.sendToVirtual(action: selectedAction, text: body, image: singleImage?.asset,
+                    try await model.sendToVirtual(action: selectedAction, text: body, attachments: payload.map(\.asset),
                                                   to: id, requestID: requestID, baseRevision: virtualBaseRevision)
                     summary = "Sent"
                 } else {
@@ -628,6 +657,17 @@ extension ComposeAction {
         case .card: "Make a card from this note and send it to the display. 1 AI run. ⌥2"
         case .cardHistory: "Make a card from this note and the last 7 days of notes. 1 AI run. ⌥3"
         case .asIs: "Put this one picture on the display untouched. No AI. ⌥4"
+        }
+    }
+
+    /// Beside the name in the options menu, matching the send button's own
+    /// glyph for the two it shows.
+    var symbol: String {
+        switch self {
+        case .upload: "tray.and.arrow.down"
+        case .card: "sparkles"
+        case .cardHistory: "clock.arrow.circlepath"
+        case .asIs: "photo"
         }
     }
 

@@ -398,19 +398,27 @@ final class AppModel {
         }
     }
 
+    /// Everything a draft carries, as one Content: the note, then every link
+    /// and file in the order they were added. A link on its own is a whole
+    /// draft — nothing here asks for text.
+    nonisolated static func draftAssets(text: String, attachments: [PresentationAsset]) -> [PresentationAsset] {
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (body.isEmpty ? [] : [.text(body)]) + attachments
+    }
+
     /// Upload, then the action the user chose over it. Returns one line for
     /// the composer to show as it closes; an AI run is followed on Home.
     func compose(text: String, attachments: [PresentationAsset], action: ComposeAction,
                  target: ComposeTarget, requestID: UUID) async throws -> String {
         guard session?.user != nil else { throw APIError.notAuthenticated }
-        var assets: [PresentationAsset] = []
-        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !body.isEmpty { assets.append(.text(body)) }
-        assets += attachments
+        let assets = Self.draftAssets(text: text, attachments: attachments)
 
         let spec: AnalysisTargetSpec
         var deviceID: String?
-        switch target {
+        // Just upload sends nothing anywhere, so whatever display is still
+        // picked does not matter — a Virtual Display included, which used to
+        // refuse the upload outright.
+        switch action == .upload ? ComposeTarget.agent : target {
         case .agent: spec = .agent
         case .hardware(let id): spec = .display(id); deviceID = id
         case .virtual: throw VirtualDisplayError.message("Virtual Displays publish their own frame.")
@@ -489,7 +497,7 @@ final class AppModel {
 
     /// Virtual Displays publish a frame themselves, so the whole generate →
     /// download → publish chain runs here and the composer waits on it.
-    func sendToVirtual(action: ComposeAction, text: String, image: PresentationAsset?, to displayID: UUID,
+    func sendToVirtual(action: ComposeAction, text: String, attachments: [PresentationAsset], to displayID: UUID,
                        requestID: UUID, baseRevision: Int64) async throws {
         guard session?.user != nil else { throw APIError.notAuthenticated }
         guard let display = virtualDisplays.displays.first(where: { $0.id == displayID }) else {
@@ -500,17 +508,20 @@ final class AppModel {
         let mode: String
         switch action {
         case .asIs, .upload:
+            // As-is is one picture, or the text rendered here; the composer
+            // only offers it when the draft is exactly that.
             var imageData: Data?
-            if case .binary(_, _, let data)? = image { imageData = data }
+            if attachments.count == 1, case .binary(_, let type, let data) = attachments[0], type.hasPrefix("image/") {
+                imageData = data
+            }
             let png = try imageData.map { try VirtualDisplayRenderer.image($0, size: display.canvasSize) }
                 ?? VirtualDisplayRenderer.text(body, size: display.canvasSize)
             assets = [.binary(filename: "frame.png", contentType: "image/png", data: png)]
             mode = "hardcode"
         case .card, .cardHistory:
-            var list: [PresentationAsset] = []
-            if !body.isEmpty { list.append(.text(body)) }
-            if let image { list.append(image) }
-            assets = list
+            // The AI gets the whole draft. Only the one picture used to come
+            // through, so a link on its own went out as nothing at all.
+            assets = Self.draftAssets(text: body, attachments: attachments)
             mode = action == .card ? "auto" : "history"
         }
         guard await virtualDisplays.generateAndPublish(id: displayID, requestID: requestID, frameID: requestID,

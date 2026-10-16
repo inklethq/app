@@ -30,6 +30,25 @@ enum AttachmentRules {
         return nil
     }
 
+    /// A link the backend takes: http or https with a host that has a dot in
+    /// it (`assets.go` refuses any other scheme, and a URL without a host, as
+    /// `invalid_asset`). What people type is often a bare `example.com/page`,
+    /// so a missing scheme is read as https. Nil when it isn't a link at all.
+    static func link(from raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains(where: \.isWhitespace) else { return nil }
+        let candidate = trimmed.contains("://") ? trimmed : "https://" + trimmed
+        // No credentials either: a web link has none, and with https:// put in
+        // front, `mailto:a@example.com` would otherwise read as user "mailto"
+        // at example.com.
+        guard let url = URL(string: candidate),
+              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+              url.user() == nil, url.password() == nil,
+              let host = url.host(), host.contains("."), !host.hasPrefix("."), !host.hasSuffix(".")
+        else { return nil }
+        return url.absoluteString
+    }
+
     static func contentType(for url: URL) -> String {
         UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
     }
