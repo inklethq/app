@@ -3,6 +3,32 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.3.3</title>
+            <pubDate>Fri, 16 Oct 2026 21:55:09 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>0.3.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.3.3
+
+Fixes
+- A link on its own sends. Sending just a link to a Virtual Display
+  failed with "Invalid presentation content or output size.", and a link
+  sent together with text was left out without a word.
+- Just upload works while a Virtual Display is picked; it used to fail.
+- Add Link takes web links only, the kind inklet can read. Typing
+  example.com is read as https://example.com.
+
+Changes
+- The send option has a menu of its own, next to the display menu, and
+  the Send button stands apart (it says Save for Just upload). Command-
+  Return and Option-1 to Option-4 work as before.
+- The composer remembers the send option you picked last.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.3.3/inklet-portal-0.3.3-mac-universal.dmg" length="9638683" type="application/octet-stream" sparkle:edSignature="GShEJ2URY1hQ0Tomzfqr40uHCSIZ7LDcFJQwsaTw5ZCsY5OQZslwIwd6/krXDrWidOVCUblsRVo5lddxa+IGDw=="/>
+        </item>
+        <item>
             <title>0.3.2</title>
             <pubDate>Sat, 26 Sep 2026 20:56:15 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
@@ -44,24 +70,6 @@ Changes
 
 ]]></description>
             <enclosure url="https://github.com/inklethq/app/releases/download/v0.3.1/inklet-portal-0.3.1-mac-universal.dmg" length="9638234" type="application/octet-stream" sparkle:edSignature="qH2jBcVsQvtagdjGupyC4ZQ+GjPRPi7HJ8HRrIDsk6udpQuITFMEsqAticD3LLSD47xOrZx1RUbSw4AZMwhWCA=="/>
-        </item>
-        <item>
-            <title>0.3.0</title>
-            <pubDate>Thu, 24 Sep 2026 21:24:22 +0000</pubDate>
-            <link>https://github.com/inklethq/app/releases</link>
-            <sparkle:version>20</sparkle:version>
-            <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.3.0
-
-New
-- Ask inklet: a conversation with everything you have saved. Open it from
-  the sidebar, the app menu, or ⌘⇧A. Ask a question and inklet searches and
-  reads your notes and answers as it writes; ask it to make a card or put an
-  earlier picture back on a display and it does that for you. Part of Pro.
-
-]]></description>
-            <enclosure url="https://github.com/inklethq/app/releases/download/v0.3.0/inklet-portal-0.3.0-mac-universal.dmg" length="9150323" type="application/octet-stream" sparkle:edSignature="l98tF9Rrg5qnb4snA/SQg3gGe6mofsJqsnUH/QjL05uHDZyuRcU/ZgpWasX6nxkI3Xi68+3OnBoNYY6ETyHvCg=="/>
         </item>
         <item>
             <title>0.2.4-alpha.4</title>
