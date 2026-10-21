@@ -263,6 +263,25 @@ actor InkletAPI {
         }
     }
 
+    /// `POST /api/devices/bind/nfc`: claim a hardware display with its bind
+    /// credential (handed over by the display during Bluetooth setup).
+    func bindDisplay(_ credential: DisplayBindCredential) async throws -> DeviceDTO {
+        let (data, status) = try await authedResponse("api/devices/bind/nfc", method: "POST",
+                                                      jsonObject: credential.requestBody)
+        switch status {
+        case 200...299:
+            guard let response = try? JSONDecoder().decode(DisplayBindResponseDTO.self, from: data) else {
+                throw APIError.decoding
+            }
+            return response.device
+        case 401:
+            throw APIError.sessionExpired
+        default:
+            let envelope = serverError(data)
+            throw DisplayBindError.from(status: status, code: envelope.code, message: envelope.message)
+        }
+    }
+
     /// `POST /api/app/v1/displays/{id}/advance`: show the next queued item.
     /// Returns false on an empty queue, which is not an error. No AI, no quota.
     func advanceDisplay(displayID: String) async throws -> Bool {

@@ -66,6 +66,13 @@ struct Quote0BindResponseDTO: Codable, Sendable {
     var status: String?
 }
 
+/// `POST /api/devices/bind/nfc`: status is "bound" or "already_bound" (the
+/// same account claiming its own display again).
+struct DisplayBindResponseDTO: Codable, Sendable {
+    var device: DeviceDTO
+    var status: String?
+}
+
 // MARK: - Time
 
 enum InkletTime {
