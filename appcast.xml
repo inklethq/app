@@ -3,6 +3,30 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.4.0</title>
+            <pubDate>Wed, 21 Oct 2026 03:28:56 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:version>24</sparkle:version>
+            <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.4.0
+
+New
+- Set up a display from your Mac, over Bluetooth. When a display can't
+  get online, hold its touch strip for 3 seconds: it shows a QR code and
+  a code. Choose it under Pair Display and type the code; your Mac lists
+  the Wi-Fi networks the display can see, waits until it has joined
+  yours, and adds it to your account. No iPhone needed.
+
+Changes
+- Pair Display asks for Bluetooth access the first time you open it.
+- A display that is already online is still paired by tapping its NFC
+  tag with the inklet app on your iPhone; the page now says so.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.4.0/inklet-portal-0.4.0-mac-universal.dmg" length="10085770" type="application/octet-stream" sparkle:edSignature="YUL+js5gCYEAhkAtWvqHTLSBqpmliSA8PGH+VDDD5Zz+cMQsNMeGrnZx+ILjkq2123kL3IZb78TJbMchYbj8Bw=="/>
+        </item>
+        <item>
             <title>0.3.3</title>
             <pubDate>Fri, 16 Oct 2026 21:55:09 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
@@ -47,29 +71,6 @@ Changes
 
 ]]></description>
             <enclosure url="https://github.com/inklethq/app/releases/download/v0.3.2/inklet-portal-0.3.2-mac-universal.dmg" length="9640065" type="application/octet-stream" sparkle:edSignature="MVLml2DuHXnFakYEYipSGjEgy7hyHNHEZApFpJgqpi/bqJQlJGsiBB959YMmartmPAl6wmjCsOA40rL7A9UpDQ=="/>
-        </item>
-        <item>
-            <title>0.3.1</title>
-            <pubDate>Sat, 26 Sep 2026 08:59:57 +0000</pubDate>
-            <link>https://github.com/inklethq/app/releases</link>
-            <sparkle:version>21</sparkle:version>
-            <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.3.1
-
-New
-- Read a saved item without leaving the app: select it in Knowledge and the
-  note, page or file text opens beside the list.
-- Rename a conversation in Ask.
-
-Changes
-- A quieter look throughout: plain section headings instead of small caps,
-  one card style for Knowledge, History and Ask, and status lines written
-  as sentences.
-- Link rows in Knowledge show the site and the page, not the whole URL.
-
-]]></description>
-            <enclosure url="https://github.com/inklethq/app/releases/download/v0.3.1/inklet-portal-0.3.1-mac-universal.dmg" length="9638234" type="application/octet-stream" sparkle:edSignature="qH2jBcVsQvtagdjGupyC4ZQ+GjPRPi7HJ8HRrIDsk6udpQuITFMEsqAticD3LLSD47xOrZx1RUbSw4AZMwhWCA=="/>
         </item>
         <item>
             <title>0.2.4-alpha.4</title>
