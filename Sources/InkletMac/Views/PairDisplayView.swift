@@ -35,7 +35,7 @@ struct PairDisplayView: View {
         .background(Ink.bg)
         .navigationTitle("Pair Display")
         .onAppear {
-            flow.bindHandler = { uri in try await model.bindDisplay(uri: uri).id }
+            flow.bindHandler = { credential in try await model.bindDisplay(credential: credential).id }
             flow.start()
         }
         .onDisappear { flow.stop() }

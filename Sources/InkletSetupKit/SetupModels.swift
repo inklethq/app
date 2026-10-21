@@ -29,14 +29,14 @@ public struct InkletWiFiNetwork: Identifiable, Hashable, Sendable {
     }
 }
 
-/// What the display reports about itself over the secured session. `bind` is
-/// the display's claim credential — the same `inklet://bind?v=2&…` URI its NFC
-/// tag carries — when the factory issued one.
+/// What the display reports about itself over the secured session.
+/// `credential` is its claim credential — `inklet://bind?v=2&…`, the same one
+/// its NFC tag carries — when it has been issued one.
 public struct InkletDisplayInfo: Decodable, Equatable, Sendable {
     public let hwId: String
     public let thingName: String
     public let firmware: String?
-    public let bind: String?
+    public let credential: String?
 }
 
 /// The setup screen's QR code: Espressif's standard provisioning JSON,

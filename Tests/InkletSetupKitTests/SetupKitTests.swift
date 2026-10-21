@@ -91,3 +91,13 @@ private func hex(_ s: String) -> Data {
     #expect(InkletSetupQR("inklet://bind?v=2") == nil)
     #expect(InkletSetupQR(#"{"name":"INKLET-2078","pop":"X","transport":"softap"}"#) == nil)
 }
+
+// The display hands its claim credential over as "credential"; absent means
+// none was issued.
+@Test func deviceInfoReadsTheCredential() throws {
+    let uri = "inklet://bind?v=2&kid=nfc-master-2026-01&hw=92be8ee85ee74c7b9ea7de00b6eb3801&cv=1&p=fsArTXVRLZ4Oc9EqH-zb0w"
+    let issued = #"{"hwId":"92be","thingName":"inklet-92be","credential":"\#(uri)"}"#
+    let none = #"{"hwId":"92be","thingName":"inklet-92be","firmware":"x"}"#
+    #expect(try JSONDecoder().decode(InkletDisplayInfo.self, from: Data(issued.utf8)).credential == uri)
+    #expect(try JSONDecoder().decode(InkletDisplayInfo.self, from: Data(none.utf8)).credential == nil)
+}

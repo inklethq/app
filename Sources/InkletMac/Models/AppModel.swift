@@ -318,10 +318,10 @@ final class AppModel {
         return devices.first { $0.id == device.id } ?? device
     }
 
-    /// Claims a hardware display with the bind URI it handed over during
-    /// Bluetooth setup, and puts it at the top of the list.
-    func bindDisplay(uri: String) async throws -> Device {
-        guard let credential = DisplayBindCredential(uri: uri) else {
+    /// Claims a hardware display with the credential it handed over during
+    /// Bluetooth setup (`inklet://bind?…`), and puts it at the top of the list.
+    func bindDisplay(credential raw: String) async throws -> Device {
+        guard let credential = DisplayBindCredential(uri: raw) else {
             throw DisplayBindError.invalidCredential
         }
         let dto: DeviceDTO
