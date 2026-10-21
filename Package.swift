@@ -18,6 +18,12 @@ let package = Package(
             name: "InkletPresentationKit",
             path: "Sources/InkletPresentationKit"
         ),
+        // Bluetooth setup of a hardware display (Wi-Fi + claim). The same
+        // sources are compiled into the iPhone app.
+        .target(
+            name: "InkletSetupKit",
+            path: "Sources/InkletSetupKit"
+        ),
         .target(
             name: "InkletPresentationWidget",
             dependencies: ["InkletPresentationKit"],
@@ -29,6 +35,7 @@ let package = Package(
             dependencies: [
                 "InkletPresentationKit",
                 "InkletPresentationWidget",
+                "InkletSetupKit",
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             path: "Sources/InkletMac",
@@ -43,6 +50,11 @@ let package = Package(
             name: "InkletPresentationKitTests",
             dependencies: ["InkletPresentationKit"],
             path: "Tests/InkletPresentationKitTests"
+        ),
+        .testTarget(
+            name: "InkletSetupKitTests",
+            dependencies: ["InkletSetupKit"],
+            path: "Tests/InkletSetupKitTests"
         ),
         .testTarget(
             name: "InkletMacTests",

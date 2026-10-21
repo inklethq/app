@@ -121,6 +121,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleURLName</key><string>com.iminklet.mac.widgets</string>
     <key>CFBundleURLSchemes</key><array><string>inklet-mac</string></array>
   </dict></array>
+  <key>NSBluetoothAlwaysUsageDescription</key>
+  <string>inklet Portal uses Bluetooth to set up a new display: it gives the display your Wi-Fi network and adds it to your account.</string>
   <key>NSLocationUsageDescription</key>
   <string>inklet Portal uses your approximate location to show the weather on Home.</string>
   <key>NSLocationWhenInUseUsageDescription</key>

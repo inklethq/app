@@ -318,6 +318,29 @@ final class AppModel {
         return devices.first { $0.id == device.id } ?? device
     }
 
+    /// Claims a hardware display with the bind URI it handed over during
+    /// Bluetooth setup, and puts it at the top of the list.
+    func bindDisplay(uri: String) async throws -> Device {
+        guard let credential = DisplayBindCredential(uri: uri) else {
+            throw DisplayBindError.invalidCredential
+        }
+        let dto: DeviceDTO
+        do {
+            dto = try await InkletAPI.shared.bindDisplay(credential)
+        } catch {
+            if APIError.endsSession(error) { await session?.invalidate() }
+            throw error
+        }
+        let device = Device(dto: dto)
+        if let index = devices.firstIndex(where: { $0.id == device.id }) {
+            devices[index] = device
+        } else {
+            devices.insert(device, at: 0)
+        }
+        loadPreview(for: device)
+        return device
+    }
+
     func unbind(_ device: Device) async {
         do {
             try await InkletAPI.shared.unbind(deviceID: device.id)
