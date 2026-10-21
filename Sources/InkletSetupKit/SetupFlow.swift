@@ -7,7 +7,7 @@ import Foundation
 ///   pick display (or scan its QR) → enter the code on its screen → pick the
 ///   Wi-Fi it should join → wait for it to join → claim it for this account.
 ///
-/// Claiming uses the display's bind credential (the `inklet://bind?…` URI its
+/// Claiming uses the display's credential (the `inklet://bind?…` URI its
 /// NFC tag carries), handed over inside the code-secured session; the app
 /// supplies `bindHandler` to post it to `POST /api/devices/bind/nfc`.
 @MainActor
@@ -41,7 +41,7 @@ public final class InkletSetupFlow: ObservableObject {
     /// next action.
     @Published public var errorMessage: String?
 
-    /// Claims the display with its bind URI; returns the new device id if known.
+    /// Claims the display with its credential; returns the new device id if known.
     public var bindHandler: (@MainActor (String) async throws -> String?)?
 
     private var session: InkletSetupSession?
@@ -138,13 +138,13 @@ public final class InkletSetupFlow: ObservableObject {
         self.session = nil
         central.stopScanning()
 
-        guard let uri = info?.bind, !uri.isEmpty, let bindHandler else {
+        guard let credential = info?.credential, !credential.isEmpty, let bindHandler else {
             step = .finished(.wifiOnly)
             return
         }
         step = .binding
         do {
-            step = .finished(.bound(deviceID: try await bindHandler(uri)))
+            step = .finished(.bound(deviceID: try await bindHandler(credential)))
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             step = .finished(.bindFailed(message))
