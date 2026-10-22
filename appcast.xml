@@ -3,6 +3,23 @@
     <channel>
         <title>inklet Portal</title>
         <item>
+            <title>0.4.1</title>
+            <pubDate>Thu, 22 Oct 2026 01:55:35 +0000</pubDate>
+            <link>https://github.com/inklethq/app/releases</link>
+            <sparkle:version>25</sparkle:version>
+            <sparkle:shortVersionString>0.4.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.4.1
+
+Fixes
+- Setting up a display over Bluetooth adds it to your account again.
+  With current display firmware, setup stopped at "The display is on
+  Wi-Fi" and the display had to be added by tapping its NFC tag.
+
+]]></description>
+            <enclosure url="https://github.com/inklethq/app/releases/download/v0.4.1/inklet-portal-0.4.1-mac-universal.dmg" length="10085662" type="application/octet-stream" sparkle:edSignature="HHkny2IJ+kRscGwrHBxfLKFpBTewh4h30phnGf69pPXsKdFKBvNODP9YH9vNZBhBmNYhQ/3bUKMGpLDQZ8bjBw=="/>
+        </item>
+        <item>
             <title>0.4.0</title>
             <pubDate>Wed, 21 Oct 2026 03:28:56 +0000</pubDate>
             <link>https://github.com/inklethq/app/releases</link>
@@ -51,26 +68,6 @@ Changes
 
 ]]></description>
             <enclosure url="https://github.com/inklethq/app/releases/download/v0.3.3/inklet-portal-0.3.3-mac-universal.dmg" length="9638683" type="application/octet-stream" sparkle:edSignature="GShEJ2URY1hQ0Tomzfqr40uHCSIZ7LDcFJQwsaTw5ZCsY5OQZslwIwd6/krXDrWidOVCUblsRVo5lddxa+IGDw=="/>
-        </item>
-        <item>
-            <title>0.3.2</title>
-            <pubDate>Sat, 26 Sep 2026 20:56:15 +0000</pubDate>
-            <link>https://github.com/inklethq/app/releases</link>
-            <sparkle:version>22</sparkle:version>
-            <sparkle:shortVersionString>0.3.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[inklet Portal for macOS 0.3.2
-
-Fixes
-- You stay signed in across updates. Sessions could be lost when the app
-  was replaced, which made every update ask for your password again.
-
-Changes
-- The sign-in page now says what inklet is for: your second brain, on
-  e-ink displays.
-
-]]></description>
-            <enclosure url="https://github.com/inklethq/app/releases/download/v0.3.2/inklet-portal-0.3.2-mac-universal.dmg" length="9640065" type="application/octet-stream" sparkle:edSignature="MVLml2DuHXnFakYEYipSGjEgy7hyHNHEZApFpJgqpi/bqJQlJGsiBB959YMmartmPAl6wmjCsOA40rL7A9UpDQ=="/>
         </item>
         <item>
             <title>0.2.4-alpha.4</title>
